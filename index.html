@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pump Seal Configurator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app-shell">
+    <header class="app-header">
+    </header>
+
+    <nav class="tabs">
+        <button class="tab-button active" data-target="tab-dimensional">Dimensional Search</button>
+        <button class="tab-button" data-target="tab-crossref">Pump Mfg Cross Reference</button>
+        <button class="tab-button" data-target="tab-partnumber">Part Number Search</button>
+    </nav>
+
+    <main class="app-main">
+        <!-- Dimensional Search -->
+        <section id="tab-dimensional" class="tab-panel active">
+            <div class="card">
+                <h2>Dimensional Search</h2>
+                <p class="help-text">
+                    Start by selecting units, then choose a shaft size. Each choice will narrow the remaining options.
+                    Converted dimensions are highlighted in <span class="legend-converted">yellow</span>.
+                </p>
+
+                <div class="filters-grid">
+                    <div class="filter-group">
+                        <label class="filter-label">Units</label>
+                        <div class="unit-toggle">
+                            <label><input type="radio" name="unit" value="inch" checked> Inch</label>
+                            <label><input type="radio" name="unit" value="mm"> Millimeter</label>
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label">Shaft Size / Seal Size <span class="required">*</span></label>
+                        <select id="shaft-size-select" class="filter-select" disabled>
+                            <option value="">Select units firstâ€¦</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label">Mating Ring OD / Seat OD</label>
+                        <select id="mating-od-select" class="filter-select" disabled>
+                            <option value="">(optional)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label">Seal Head Type</label>
+                        <select id="head-type-select" class="filter-select" disabled>
+                            <option value="">(optional)</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label class="filter-label">Mating Ring Design</label>
+                        <select id="mating-design-select" class="filter-select" disabled>
+                            <option value="">(optional)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="advanced-toggle" class="btn-link">Advanced filters â–¾</button>
+                <div id="advanced-filters" class="advanced-filters collapsed">
+                    <div class="filters-grid">
+                        <div class="filter-group">
+                            <label class="filter-label">Secondary Seal Material</label>
+                            <select id="secondary-material-select" class="filter-select">
+                                <option value="">Any</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Face Material</label>
+                            <select id="face-material-select" class="filter-select">
+                                <option value="">Any</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Metal Parts Material</label>
+                            <select id="metal-material-select" class="filter-select">
+                                <option value="">Any</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Minimum Temperature Rating (°F)</label>
+                            <select id="temp-rating-select" class="filter-select">
+                                <option value="">Any</option>
+                                <option value="175">≥ 175°F</option>
+                                <option value="225">≥ 225°F</option>
+                                <option value="300">≥ 300°F</option>
+                                <option value="400">≥ 400°F</option>
+                                <option value="450">≥ 450°F</option>
+                                <option value="500">≥ 500°F</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">Chemical / Fluid Compatibility</label>
+                            <select id="fluid-select" class="filter-select">
+                                <option value="">Any</option>
+                            </select>
+                            <p class="tiny-help">
+                                Compatibility is based on material recommendations matrix; use as guidance, not a guarantee.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="actions-row">
+                    <button id="dim-search-button" class="btn-primary">Search Seals</button>
+                    <button id="dim-reset-button" class="btn-secondary">Reset</button>
+                    <button id="design-chart-button" class="btn-ghost" type="button">Design Chart</button>
+                </div>
+            </div>
+
+            <div id="design-chart-modal" class="design-modal" aria-hidden="true">
+                <div class="design-modal__overlay" id="design-chart-overlay"></div>
+                <div class="design-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="design-chart-title">
+                    <button type="button" class="design-modal__close" id="design-chart-close" aria-label="Close design chart">&times;</button>
+                    <h3 id="design-chart-title">Head Types &amp; Mating Ring Designs</h3>
+                    <p class="design-chart-summary">
+                        Quick visual reference for common seal head types and mating ring faces.
+                    </p>
+                    <div class="design-modal__section">
+                        <h4>Head Types</h4>
+                        <div id="design-chart-head-grid" class="design-chart-grid"></div>
+                    </div>
+                    <div class="design-modal__section">
+                        <h4>Mating Ring Designs</h4>
+                        <div id="design-chart-ring-grid" class="design-chart-grid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="results-layout">
+                <div class="results-list card">
+                    <div class="results-header">
+                        <h3>Matching Seals</h3>
+                        <span id="results-count" class="results-count">0 results</span>
+                    </div>
+                    <ul id="results-list" class="results-items"></ul>
+                </div>
+                <div class="results-details card">
+                    <div id="detail-placeholder" class="detail-placeholder">
+                        Select a seal to see details.
+                    </div>
+                    <div id="detail-panel" class="detail-panel hidden">
+                        <div class="detail-header">
+                            <h3 id="detail-part-number"></h3>
+                            <div class="detail-header-actions">
+                                <button id="detail-add-compare" class="btn-small">Add to Compare</button>
+                                <button id="detail-print" class="btn-small">Print</button>
+                            </div>
+                        </div>
+                        <div id="detail-body" class="detail-body"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="compare-panel" class="compare-panel card hidden">
+                <div class="compare-header">
+                    <h3>Compare Seals</h3>
+                    <button id="compare-clear" class="btn-small">Clear Comparison</button>
+                </div>
+                <div id="compare-body" class="compare-body"></div>
+            </div>
+        </section>
+
+        <!-- Pump Mfg Cross Reference -->
+        <section id="tab-crossref" class="tab-panel">
+            <div class="card">
+                <h2>Pump Mfg Cross Reference</h2>
+                <p class="help-text">
+                    Search by manufacturer part number or pump model to find U.S. Seal / Value Guard equivalents.
+                    Start typing to see suggestions.
+                </p>
+                <div class="filters-grid">
+                    <div class="filter-group full-width">
+                        <label class="filter-label">Manufacturer Part / Model</label>
+                        <input id="mfg-search-input" class="filter-input" placeholder="Enter pump manufacturer part number or modelâ€¦">
+                        <ul id="mfg-suggestions" class="suggestions-list"></ul>
+                    </div>
+                </div>
+                <div class="actions-row">
+                    <button id="mfg-search-button" class="btn-primary">Search Cross Reference</button>
+                    <button id="mfg-reset-button" class="btn-secondary">Reset</button>
+                </div>
+            </div>
+
+            <div class="results-layout single-column">
+                <div class="results-list card">
+                    <div class="results-header">
+                        <h3>Cross Reference Results</h3>
+                        <span id="mfg-results-count" class="results-count">0 results</span>
+                    </div>
+                    <ul id="mfg-results-list" class="results-items"></ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Part Number Search -->
+        <section id="tab-partnumber" class="tab-panel">
+            <div class="card">
+                <h2>Part Number Search</h2>
+                <p class="help-text">
+                    Start typing a Value Guard or U.S. Seal Mfg. part number. The top 3 matches will appear as suggestions.
+                </p>
+
+                <div class="filters-grid">
+                    <div class="filter-group full-width">
+                        <label class="filter-label">Part Number</label>
+                        <input id="pn-search-input" class="filter-input" placeholder="e.g. VG123, PS-1234â€¦">
+                        <ul id="pn-suggestions" class="suggestions-list"></ul>
+                    </div>
+                </div>
+                <div class="actions-row">
+                    <button id="pn-search-button" class="btn-primary">Find Part</button>
+                    <button id="pn-reset-button" class="btn-secondary">Reset</button>
+                </div>
+
+                <div class="results-layout single-column">
+                    <div class="results-details card">
+                        <div id="pn-detail-placeholder" class="detail-placeholder">
+                            Select a suggestion or search to view part details.
+                        </div>
+                        <div id="pn-detail-panel" class="detail-panel hidden">
+                            <div class="detail-header">
+                                <h3 id="pn-detail-part-number"></h3>
+                                <div class="detail-header-actions">
+                                    <button id="pn-detail-add-compare" class="btn-small">Add to Compare</button>
+                                    <button id="pn-detail-print" class="btn-small">Print</button>
+                                </div>
+                            </div>
+                            <div id="pn-detail-body" class="detail-body"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="app-footer">
+        <div class="footer-left">
+            <span>Tri-State Bearing • Internal Pump Seal Tool</span>
+        </div>
+        <div class="footer-right">
+            <span class="legend-converted">Converted dimension</span>
+            <span class="footer-note">All data best-effort from U.S. Seal / Value Guard references.</span>
+        </div>
+    </footer>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/data_seals.js"></script>
+<script src="js/data_materials.js"></script>
+<script src="js/data_xref.js"></script>
+<script src="js/search_logic.js"></script>
+<script src="js/ui_results.js"></script>
+<script src="js/autocomplete.js"></script>
+<script src="js/design_chart.js"></script>
+<script src="js/ui_filters.js"></script>
+</body>
+</html>
