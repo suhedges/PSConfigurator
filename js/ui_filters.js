@@ -3,6 +3,10 @@ window.SealApp = window.SealApp || {};
 (function() {
     const search = window.SealApp.search;
     const materialsData = window.SealApp.materialsData;
+    const collectFluidOptionsForCategory =
+        search && search.collectFluidOptionsForCategory
+            ? search.collectFluidOptionsForCategory
+            : (() => []);
     const TEMP_THRESHOLDS = [175, 225, 300, 400, 450, 500];
     const UNSPECIFIED_DIM_VALUE = window.SealApp.UNSPECIFIED_DIM_VALUE || "__UNSPECIFIED__";
 
@@ -25,12 +29,15 @@ window.SealApp = window.SealApp || {};
         const faceSel = document.getElementById("face-material-select");
         const metalSel = document.getElementById("metal-material-select");
         const tempSel = document.getElementById("temp-rating-select");
-        const fluidSel = document.getElementById("fluid-select");
 
-        let fluidIndex = null;
-        if (fluidSel && fluidSel.value !== "" && fluidSel.value != null) {
-            const parsed = parseInt(fluidSel.value, 10);
-            fluidIndex = Number.isNaN(parsed) ? null : parsed;
+        const fluidSecSel = document.getElementById("fluid-secondary-select");
+        const fluidFaceSel = document.getElementById("fluid-faces-select");
+        const fluidMetalSel = document.getElementById("fluid-metals-select");
+
+        function parseFluidIndex(sel) {
+            if (!sel || sel.value === "" || sel.value == null) return null;
+            const parsed = parseInt(sel.value, 10);
+            return Number.isNaN(parsed) ? null : parsed;
         }
 
         return {
@@ -38,9 +45,12 @@ window.SealApp = window.SealApp || {};
             faceMaterial: faceSel ? faceSel.value || "" : "",
             metalMaterial: metalSel ? metalSel.value || "" : "",
             minTempF: tempSel ? tempSel.value || "" : "",
-            fluidIndex
+            fluidSecondaryIndex: parseFluidIndex(fluidSecSel),
+            fluidFacesIndex: parseFluidIndex(fluidFaceSel),
+            fluidMetalsIndex: parseFluidIndex(fluidMetalSel)
         };
     }
+
 
     function buildEmptyFilters(unit) {
         return {
@@ -53,9 +63,12 @@ window.SealApp = window.SealApp || {};
             faceMaterial: "",
             metalMaterial: "",
             minTempF: "",
-            fluidIndex: null
+            fluidSecondaryIndex: null,
+            fluidFacesIndex: null,
+            fluidMetalsIndex: null
         };
     }
+
 
     function createDesignCard(item) {
         const card = document.createElement("div");
@@ -232,27 +245,66 @@ window.SealApp = window.SealApp || {};
         const faceSel = document.getElementById("face-material-select");
         const metalSel = document.getElementById("metal-material-select");
         const tempSel = document.getElementById("temp-rating-select");
-        const fluidSel = document.getElementById("fluid-select");
-        if (!secSel || !faceSel || !metalSel || !tempSel || !fluidSel) return;
+
+        const fluidSecSel = document.getElementById("fluid-secondary-select");
+        const fluidFaceSel = document.getElementById("fluid-faces-select");
+        const fluidMetalSel = document.getElementById("fluid-metals-select");
+
+        if (!secSel || !faceSel || !metalSel || !tempSel ||
+            !fluidSecSel || !fluidFaceSel || !fluidMetalSel) {
+            return;
+        }
 
         const prevSec = secSel.value;
         const prevFace = faceSel.value;
         const prevMetal = metalSel.value;
         const prevTemp = tempSel.value;
-        const prevFluid = fluidSel.value;
 
-        const secondaryOpts = collectMaterialOptions("secondary", Object.assign({}, mergedFilters, { secondaryMaterial: "" }));
-        const faceOpts = collectMaterialOptions("faces", Object.assign({}, mergedFilters, { faceMaterial: "" }));
-        const metalOpts = collectMaterialOptions("metals", Object.assign({}, mergedFilters, { metalMaterial: "" }));
-        const tempOpts = collectTempOptions(Object.assign({}, mergedFilters, { minTempF: "" }));
-        const fluidOpts = collectFluidOptions(Object.assign({}, mergedFilters, { fluidIndex: null }));
+        const prevFluidSec = fluidSecSel.value;
+        const prevFluidFace = fluidFaceSel.value;
+        const prevFluidMetal = fluidMetalSel.value;
+
+        const secondaryOpts = collectMaterialOptions(
+            "secondary",
+            Object.assign({}, mergedFilters, { secondaryMaterial: "" })
+        );
+        const faceOpts = collectMaterialOptions(
+            "faces",
+            Object.assign({}, mergedFilters, { faceMaterial: "" })
+        );
+        const metalOpts = collectMaterialOptions(
+            "metals",
+            Object.assign({}, mergedFilters, { metalMaterial: "" })
+        );
+        const tempOpts = collectTempOptions(
+            Object.assign({}, mergedFilters, { minTempF: "" })
+        );
+
+        // Build fluid lists per category without their own fluid filters applied
+        const fluidSecondaryOpts = collectFluidOptionsForCategory(
+            "secondary",
+            Object.assign({}, mergedFilters, { fluidSecondaryIndex: null })
+        );
+        const fluidFacesOpts = collectFluidOptionsForCategory(
+            "faces",
+            Object.assign({}, mergedFilters, { fluidFacesIndex: null })
+        );
+        const fluidMetalsOpts = collectFluidOptionsForCategory(
+            "metals",
+            Object.assign({}, mergedFilters, { fluidMetalsIndex: null })
+        );
 
         fillSimpleSelect(secSel, "Any", secondaryOpts, prevSec);
         fillSimpleSelect(faceSel, "Any", faceOpts, prevFace);
         fillSimpleSelect(metalSel, "Any", metalOpts, prevMetal);
         fillTempSelect(tempSel, tempOpts, prevTemp);
-        fillFluidSelect(fluidSel, fluidOpts, prevFluid);
+
+        fillFluidSelect(fluidSecSel, fluidSecondaryOpts, prevFluidSec);
+        fillFluidSelect(fluidFaceSel, fluidFacesOpts, prevFluidFace);
+        fillFluidSelect(fluidMetalSel, fluidMetalsOpts, prevFluidMetal);
     }
+
+
 
     /**
      * Rebuild all dimensional dropdowns based on:
@@ -448,12 +500,16 @@ window.SealApp = window.SealApp || {};
         const faceSel = document.getElementById("face-material-select");
         const metalSel = document.getElementById("metal-material-select");
         const tempSel = document.getElementById("temp-rating-select");
-        const fluidSel = document.getElementById("fluid-select");
+        const fluidSecSel = document.getElementById("fluid-secondary-select");
+        const fluidFaceSel = document.getElementById("fluid-faces-select");
+        const fluidMetalSel = document.getElementById("fluid-metals-select");
 
-        [secSel, faceSel, metalSel, tempSel, fluidSel].forEach(sel => {
-            if (sel) sel.addEventListener("change", cascadeFilters);
-        });
+        [secSel, faceSel, metalSel, tempSel, fluidSecSel, fluidFaceSel, fluidMetalSel]
+            .forEach(sel => {
+                if (sel) sel.addEventListener("change", cascadeFilters);
+            });
     }
+
 
     function initDesignChart() {
         const btn = document.getElementById("design-chart-button");

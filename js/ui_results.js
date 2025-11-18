@@ -23,6 +23,31 @@ window.SealApp = window.SealApp || {};
         });
         return result;
     }
+    
+    function getFluidCompatibilityForMaterial(categoryKey, materialName) {
+        if (!materialsData || !Array.isArray(materialsData.fluids)) return null;
+        if (!materialName) return null;
+
+        let field;
+        if (categoryKey === "secondary") {
+            field = "secondary_ok";
+        } else if (categoryKey === "faces") {
+            field = "faces_ok";
+        } else if (categoryKey === "metals") {
+            field = "metals_ok";
+        } else {
+            return null;
+        }
+
+        const matches = [];
+        for (const rec of materialsData.fluids) {
+            const okList = rec[field] || [];
+            if (okList.includes(materialName)) {
+                matches.push(rec.fluid);
+            }
+        }
+        return matches.length ? matches : null;
+    }
 
     // NEW: choose which dimensional row to use for detail view,
     // trying to respect the last dimensional filters + unit.
@@ -260,25 +285,50 @@ window.SealApp = window.SealApp || {};
         matList.className = "detail-list";
 
         const mats = seal.materials || {};
-        const sec = (mats.secondary || []).join(", ") || PLACEHOLDER;
-        const faces = (mats.faces || []).join(", ") || PLACEHOLDER;
-        const metals = (mats.metals || []).join(", ") || PLACEHOLDER;
-        const ringMats = (mats.mating_rings || []).join(", ") || PLACEHOLDER;
-        const springs = (mats.springs || []).join(", ") || PLACEHOLDER;
 
         const matItems = [
-            ["Secondary Seals", sec],
-            ["Seal Faces", faces],
-            ["Metal Parts", metals],
-            ["Mating Rings", ringMats],
-            ["Springs", springs],
+            ["secondary", "Secondary Seals", mats.secondary || []],
+            ["faces", "Seal Faces", mats.faces || []],
+            ["metals", "Metal Parts", mats.metals || []],
+            ["mating_rings", "Mating Rings", mats.mating_rings || []],
+            ["springs", "Springs", mats.springs || []],
         ];
 
-        for (const [lab, val] of matItems) {
+        for (const [key, label, values] of matItems) {
             const li = document.createElement("li");
-            li.textContent = lab + ": " + (val || PLACEHOLDER);
+
+            const labelSpan = document.createElement("span");
+            labelSpan.textContent = label + ": ";
+            li.appendChild(labelSpan);
+
+            if (!values.length) {
+                const placeholderSpan = document.createElement("span");
+                placeholderSpan.textContent = PLACEHOLDER;
+                li.appendChild(placeholderSpan);
+            } else {
+                values.forEach((matName, idx) => {
+                    if (idx > 0) {
+                        li.appendChild(document.createTextNode(", "));
+                    }
+                    const matSpan = document.createElement("span");
+                    matSpan.textContent = matName;
+                    li.appendChild(matSpan);
+
+                    // Only show icons where we actually have compatibility data
+                    const compatFluids = getFluidCompatibilityForMaterial(key, matName);
+                    if (compatFluids && compatFluids.length) {
+                        const icon = document.createElement("span");
+                        icon.className = "material-chem-icon";
+                        icon.textContent = "!";
+                        icon.title = "Compatible with: " + compatFluids.join(", ");
+                        li.appendChild(icon);
+                    }
+                });
+            }
+
             matList.appendChild(li);
         }
+
 
         const code = (seal.materials_codes || []).join(", ");
         if (code) {
@@ -602,12 +652,25 @@ window.SealApp = window.SealApp || {};
                 faceMaterial: document.getElementById("face-material-select").value || "",
                 metalMaterial: document.getElementById("metal-material-select").value || "",
                 minTempF: document.getElementById("temp-rating-select").value || "",
-                fluidIndex: (function() {
-                    const fSel = document.getElementById("fluid-select");
-                    const ix = fSel.value;
-                    if (ix === "") return null;
-                    return parseInt(ix, 10);
+                fluidSecondaryIndex: (function() {
+                    const sel = document.getElementById("fluid-secondary-select");
+                    if (!sel || sel.value === "") return null;
+                    const ix = parseInt(sel.value, 10);
+                    return Number.isNaN(ix) ? null : ix;
+                })(),
+                fluidFacesIndex: (function() {
+                    const sel = document.getElementById("fluid-faces-select");
+                    if (!sel || sel.value === "") return null;
+                    const ix = parseInt(sel.value, 10);
+                    return Number.isNaN(ix) ? null : ix;
+                })(),
+                fluidMetalsIndex: (function() {
+                    const sel = document.getElementById("fluid-metals-select");
+                    if (!sel || sel.value === "") return null;
+                    const ix = parseInt(sel.value, 10);
+                    return Number.isNaN(ix) ? null : ix;
                 })()
+
             };
 
             const results = search.filterSeals(filters);
@@ -628,10 +691,16 @@ window.SealApp = window.SealApp || {};
             document.getElementById("face-material-select").selectedIndex = 0;
             document.getElementById("metal-material-select").selectedIndex = 0;
             document.getElementById("temp-rating-select").selectedIndex = 0;
-            document.getElementById("fluid-select").selectedIndex = 0;
+            const fs = document.getElementById("fluid-secondary-select");
+            const ff = document.getElementById("fluid-faces-select");
+            const fm = document.getElementById("fluid-metals-select");
+            if (fs) fs.selectedIndex = 0;
+            if (ff) ff.selectedIndex = 0;
+            if (fm) fm.selectedIndex = 0;
             resultsList.innerHTML = "";
             resultsCount.textContent = "0 results";
         });
+
 
         document.getElementById("detail-add-compare").addEventListener("click", () => {
             if (currentDetailSeal) addToCompare(currentDetailSeal);

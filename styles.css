@@ -13,6 +13,22 @@ html, body {
     color: #111827;
 }
 
+.material-chem-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    font-size: 0.65rem;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    border: 1px solid #f97316;
+    color: #b45309;
+    background: #fffbeb;
+    cursor: help;
+}
+
+
 body {
     display: flex;
 }

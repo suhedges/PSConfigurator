@@ -184,9 +184,60 @@ window.SealApp = window.SealApp || {};
         return false;
     }
 
+    function isSealCompatibleWithFluidCategory(seal, fluidRec, categoryKey) {
+        if (!fluidRec || !seal || !seal.materials) return false;
+
+        const mats = seal.materials;
+        let okList, materials;
+
+        if (categoryKey === "secondary") {
+            okList = fluidRec.secondary_ok || [];
+            materials = mats.secondary || [];
+        } else if (categoryKey === "faces") {
+            okList = fluidRec.faces_ok || [];
+            materials = mats.faces || [];
+        } else if (categoryKey === "metals") {
+            okList = fluidRec.metals_ok || [];
+            materials = mats.metals || [];
+        } else {
+            return false;
+        }
+
+        if (!materials.length) return false;
+
+        const okSet = new Set(okList);
+        return materials.some(m => okSet.has(m));
+    }
+
+    // Build the <option> list for ONE of the three fluid filters
+    //   categoryKey: "secondary" | "faces" | "metals"
+    //   filters:     full filter object without that category's own fluid index set
+    function collectFluidOptionsForCategory(categoryKey, filters) {
+        const results = filterSeals(filters);
+        const fluids = materialsData.fluids || [];
+        const available = [];
+
+        for (let idx = 0; idx < fluids.length; idx++) {
+            const rec = fluids[idx];
+            if (!rec) continue;
+
+            const hasMatch = results.some(seal =>
+                isSealCompatibleWithFluidCategory(seal, rec, categoryKey)
+            );
+
+            if (hasMatch) {
+                available.push({ value: idx, label: rec.fluid });
+            }
+        }
+
+        return available;
+    }
+
+    // Extend material filters with per-category fluid compatibility
     function sealMatchesMaterialFilters(seal, filters) {
         const mats = seal.materials || {};
 
+        // Basic material filters
         if (filters.secondaryMaterial) {
             const list = mats.secondary || [];
             if (!list.includes(filters.secondaryMaterial)) return false;
@@ -200,27 +251,25 @@ window.SealApp = window.SealApp || {};
             if (!list.includes(filters.metalMaterial)) return false;
         }
 
+        // Temperature
         if (filters.minTempF) {
             const needed = parseFloat(filters.minTempF);
             const maxT = seal.max_temp_f;
             if (maxT == null || maxT < needed) return false;
         }
 
-        if (filters.fluidIndex != null) {
-            const fluidRec = materialsData.fluids[filters.fluidIndex];
-            if (fluidRec) {
-                const secOk = new Set(fluidRec.secondary_ok || []);
-                const faceOk = new Set(fluidRec.faces_ok || []);
-                const metalOk = new Set(fluidRec.metals_ok || []);
-
-                const secList = mats.secondary || [];
-                const faceList = mats.faces || [];
-                const metalList = mats.metals || [];
-
-                if (secList.length && !secList.some(m => secOk.has(m))) return false;
-                if (faceList.length && !faceList.some(m => faceOk.has(m))) return false;
-                if (metalList.length && !metalList.some(m => metalOk.has(m))) return false;
-            }
+        // NEW: per-category fluid compatibility filters
+        if (filters.fluidSecondaryIndex != null) {
+            const rec = materialsData.fluids[filters.fluidSecondaryIndex];
+            if (!isSealCompatibleWithFluidCategory(seal, rec, "secondary")) return false;
+        }
+        if (filters.fluidFacesIndex != null) {
+            const rec = materialsData.fluids[filters.fluidFacesIndex];
+            if (!isSealCompatibleWithFluidCategory(seal, rec, "faces")) return false;
+        }
+        if (filters.fluidMetalsIndex != null) {
+            const rec = materialsData.fluids[filters.fluidMetalsIndex];
+            if (!isSealCompatibleWithFluidCategory(seal, rec, "metals")) return false;
         }
 
         return true;
@@ -272,6 +321,8 @@ window.SealApp = window.SealApp || {};
         filterSeals,
         findSealByPart,
         searchXrefsByMfgTerm,
-        getTypeDescriptor
+        getTypeDescriptor,
+        isSealCompatibleWithFluidCategory,
+        collectFluidOptionsForCategory
     };
 })();
