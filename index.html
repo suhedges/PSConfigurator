@@ -39,7 +39,7 @@
                     <div class="filter-group">
                         <label class="filter-label">Shaft Size / Seal Size <span class="required">*</span></label>
                         <select id="shaft-size-select" class="filter-select" disabled>
-                            <option value="">Select units firstâ€¦</option>
+                            <option value="">Select units first...</option>
                         </select>
                     </div>
 
@@ -63,9 +63,33 @@
                             <option value="">(optional)</option>
                         </select>
                     </div>
+                    <div class="filter-group full-width family-filter-group">
+                        <label class="filter-label">Part Family</label>
+                        <div class="family-checkboxes" id="dim-family-checkboxes">
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="dim" data-family="standard_seal" checked>
+                                Standard seals (PS, VG)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="dim" data-family="hd_head" checked>
+                                HD / heavy-duty heads (HD, VGM)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="dim" data-family="seal_head" checked>
+                                Seal head assemblies (FA)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="dim" data-family="mating_ring" checked>
+                                Mating rings (STG)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="dim" data-family="other" checked>
+                                Other / misc
+                            </label>
+                        </div>
+                    </div>
                 </div>
-
-                <button id="advanced-toggle" class="btn-link">Advanced filters â–¾</button>
+                <button id="advanced-toggle" class="btn-link" type="button">Advanced filters &#9658;</button>
                 <div id="advanced-filters" class="advanced-filters collapsed">
                     <div class="filters-grid">
                         <div class="filter-group">
@@ -75,7 +99,7 @@
                             </select>
                         </div>
                         <div class="filter-group">
-                            <label class="filter-label">Face Material</label>
+                            <label class="filter-label">Seal Face Material</label>
                             <select id="face-material-select" class="filter-select">
                                 <option value="">Any</option>
                             </select>
@@ -87,42 +111,37 @@
                             </select>
                         </div>
                         <div class="filter-group">
-                            <label class="filter-label">Minimum Temperature Rating (°F)</label>
+                            <label class="filter-label">Minimum Temperature Rating</label>
                             <select id="temp-rating-select" class="filter-select">
                                 <option value="">Any</option>
-                                <option value="175">≥ 175°F</option>
-                                <option value="225">≥ 225°F</option>
-                                <option value="300">≥ 300°F</option>
-                                <option value="400">≥ 400°F</option>
-                                <option value="450">≥ 450°F</option>
-                                <option value="500">≥ 500°F</option>
                             </select>
                         </div>
+                    </div>
+                    <div class="filters-grid">
                         <div class="filter-group">
-                            <label class="filter-label">Chemical / Fluid – Secondary Seals</label>
+                            <label class="filter-label">Secondary Seal &ndash; Fluid Compatibility</label>
                             <select id="fluid-secondary-select" class="filter-select">
                                 <option value="">Any</option>
                             </select>
                         </div>
                         <div class="filter-group">
-                            <label class="filter-label">Chemical / Fluid – Seal Faces</label>
+                            <label class="filter-label">Seal Face &ndash; Fluid Compatibility</label>
                             <select id="fluid-faces-select" class="filter-select">
                                 <option value="">Any</option>
                             </select>
                         </div>
                         <div class="filter-group">
-                            <label class="filter-label">Chemical / Fluid – Metal Parts</label>
+                            <label class="filter-label">Metal Parts &ndash; Fluid Compatibility</label>
                             <select id="fluid-metals-select" class="filter-select">
                                 <option value="">Any</option>
                             </select>
-                            <p class="tiny-help">
-                                Compatibility is based on material recommendations matrix; use as guidance, not a guarantee.
-                            </p>
                         </div>
                     </div>
+                    <p class="tiny-help">
+                        Compatibility guidance is taken from the material recommendation chart and should be verified for your application.
+                    </p>
                 </div>
-
-                <div class="actions-row">
+                <div class="actions-row"> 
                     <button id="dim-search-button" class="btn-primary">Search Seals</button>
                     <button id="dim-reset-button" class="btn-secondary">Reset</button>
                     <button id="design-chart-button" class="btn-ghost" type="button">Design Chart</button>
@@ -162,7 +181,9 @@
                     </div>
                     <div id="detail-panel" class="detail-panel hidden">
                         <div class="detail-header">
-                            <h3 id="detail-part-number"></h3>
+                            <div class="detail-title-group">
+                                <h3 id="detail-part-number"></h3>
+                            </div>
                             <div class="detail-header-actions">
                                 <button id="detail-add-compare" class="btn-small">Add to Compare</button>
                                 <button id="detail-print" class="btn-small">Print</button>
@@ -193,11 +214,37 @@
                 <div class="filters-grid">
                     <div class="filter-group full-width">
                         <label class="filter-label">Manufacturer Part / Model</label>
-                        <input id="mfg-search-input" class="filter-input" placeholder="Enter pump manufacturer part number or modelâ€¦">
+                        <input id="mfg-search-input" class="filter-input" placeholder="e.g. Goulds 5K, IMO 32, WEMCO 1220">
+
                         <ul id="mfg-suggestions" class="suggestions-list"></ul>
                     </div>
+                    <div class="filter-group full-width family-filter-group">
+                        <label class="filter-label">Part Family</label>
+                        <div class="family-checkboxes" id="mfg-family-checkboxes">
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="mfg" data-family="standard_seal" checked>
+                                Standard seals (PS, VG)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="mfg" data-family="hd_head" checked>
+                                HD / heavy-duty heads (HD, VGM)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="mfg" data-family="seal_head" checked>
+                                Seal head assemblies (FA)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="mfg" data-family="mating_ring" checked>
+                                Mating rings (STG)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="mfg" data-family="other" checked>
+                                Other / misc
+                            </label>
+                        </div>
+                    </div>
                 </div>
-                <div class="actions-row">
+                <div class="actions-row"> 
                     <button id="mfg-search-button" class="btn-primary">Search Cross Reference</button>
                     <button id="mfg-reset-button" class="btn-secondary">Reset</button>
                 </div>
@@ -210,6 +257,19 @@
                         <span id="mfg-results-count" class="results-count">0 results</span>
                     </div>
                     <ul id="mfg-results-list" class="results-items"></ul>
+                </div>
+                <div class="results-details card">
+                    <div id="mfg-detail-placeholder" class="detail-placeholder">
+                        Double-click a result to view manufacturer specifications.
+                    </div>
+                    <div id="mfg-detail-panel" class="detail-panel hidden">
+                        <div class="detail-header">
+                            <div class="detail-title-group">
+                                <h3 id="mfg-detail-title"></h3>
+                            </div>
+                        </div>
+                        <div id="mfg-detail-body" class="detail-body"></div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -225,11 +285,36 @@
                 <div class="filters-grid">
                     <div class="filter-group full-width">
                         <label class="filter-label">Part Number</label>
-                        <input id="pn-search-input" class="filter-input" placeholder="e.g. VG123, PS-1234â€¦">
+                        <input id="pn-search-input" class="filter-input" placeholder="e.g. VG123, PS-1234.">
                         <ul id="pn-suggestions" class="suggestions-list"></ul>
                     </div>
+                    <div class="filter-group full-width family-filter-group">
+                        <label class="filter-label">Part Family</label>
+                        <div class="family-checkboxes" id="pn-family-checkboxes">
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="pn" data-family="standard_seal" checked>
+                                Standard seals (PS, VG)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="pn" data-family="hd_head" checked>
+                                HD / heavy-duty heads (HD, VGM)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="pn" data-family="seal_head" checked>
+                                Seal head assemblies (FA)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="pn" data-family="mating_ring" checked>
+                                Mating rings (STG)
+                            </label>
+                            <label class="checkbox-pill">
+                                <input type="checkbox" class="family-checkbox" data-context="pn" data-family="other" checked>
+                                Other / misc
+                            </label>
+                        </div>
+                    </div>
                 </div>
-                <div class="actions-row">
+                <div class="actions-row"> 
                     <button id="pn-search-button" class="btn-primary">Find Part</button>
                     <button id="pn-reset-button" class="btn-secondary">Reset</button>
                 </div>
@@ -241,7 +326,9 @@
                         </div>
                         <div id="pn-detail-panel" class="detail-panel hidden">
                             <div class="detail-header">
-                                <h3 id="pn-detail-part-number"></h3>
+                                <div class="detail-title-group">
+                                    <h3 id="pn-detail-part-number"></h3>
+                                </div>
                                 <div class="detail-header-actions">
                                     <button id="pn-detail-add-compare" class="btn-small">Add to Compare</button>
                                     <button id="pn-detail-print" class="btn-small">Print</button>
@@ -257,7 +344,7 @@
 
     <footer class="app-footer">
         <div class="footer-left">
-            <span>Tri-State Bearing • Internal Pump Seal Tool</span>
+            <span>Tri-State Bearing &middot; Internal Pump Seal Tool</span>
         </div>
         <div class="footer-right">
             <span class="legend-converted">Converted dimension</span>

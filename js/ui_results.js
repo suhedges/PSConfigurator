@@ -8,6 +8,20 @@ window.SealApp = window.SealApp || {};
     const PLACEHOLDER = "\u2014";
     const DEG_F = "\u00B0F";
     const SOURCE_SEPARATOR = " \u00B7 ";
+    const FAMILY_LABELS = {
+        standard_seal: "Standard Seal",
+        hd_head: "HD Head",
+        seal_head: "Seal Head Assembly",
+        mating_ring: "Mating Ring",
+        other: "Other"
+    };
+    const FAMILY_BADGE_CLASS = {
+        standard_seal: "badge-standard",
+        hd_head: "badge-hd",
+        seal_head: "badge-seal-head",
+        mating_ring: "badge-mating",
+        other: "badge-other"
+    };
 
     let currentDetailSeal = null;
     let compareSelection = [];
@@ -23,30 +37,100 @@ window.SealApp = window.SealApp || {};
         });
         return result;
     }
-    
-    function getFluidCompatibilityForMaterial(categoryKey, materialName) {
-        if (!materialsData || !Array.isArray(materialsData.fluids)) return null;
-        if (!materialName) return null;
 
-        let field;
-        if (categoryKey === "secondary") {
-            field = "secondary_ok";
-        } else if (categoryKey === "faces") {
-            field = "faces_ok";
-        } else if (categoryKey === "metals") {
-            field = "metals_ok";
-        } else {
-            return null;
-        }
+    function normalizeFamilyValue(family) {
+        return family || "other";
+    }
 
-        const matches = [];
-        for (const rec of materialsData.fluids) {
-            const okList = rec[field] || [];
-            if (okList.includes(materialName)) {
-                matches.push(rec.fluid);
+    function getFamilyLabel(family) {
+        const key = normalizeFamilyValue(family);
+        return FAMILY_LABELS[key] || FAMILY_LABELS.other;
+    }
+
+    function getFamilyBadgeClass(family) {
+        const key = normalizeFamilyValue(family);
+        return FAMILY_BADGE_CLASS[key] || FAMILY_BADGE_CLASS.other;
+    }
+
+    function createFamilyBadge(family) {
+        const span = document.createElement("span");
+        span.className = "family-badge " + getFamilyBadgeClass(family);
+        span.textContent = getFamilyLabel(family);
+        return span;
+    }
+
+    function getFamilyCheckboxes(context) {
+        return Array.from(document.querySelectorAll(
+            '.family-checkbox[data-context="' + context + '"]'
+        ));
+    }
+
+    function getSelectedFamilies(context) {
+        const boxes = getFamilyCheckboxes(context);
+        if (!boxes.length) return null;
+        const selected = boxes
+            .filter(box => box.checked)
+            .map(box => box.dataset.family || "other");
+        if (selected.length === boxes.length) return null;
+        return selected;
+    }
+
+    function isFamilyAllowedForContext(context, family) {
+        const allowed = getSelectedFamilies(context);
+        if (allowed === null) return true;
+        if (!allowed.length) return false;
+        return allowed.includes(normalizeFamilyValue(family));
+    }
+
+    function handleFamilyFilterChange(context) {
+        if (context === "pn") {
+            const panel = document.getElementById("pn-detail-panel");
+            const placeholder = document.getElementById("pn-detail-placeholder");
+            if (currentDetailSeal && !isFamilyAllowedForContext("pn", currentDetailSeal.family)) {
+                if (panel) panel.classList.add("hidden");
+                if (placeholder) placeholder.classList.remove("hidden");
+                currentDetailSeal = null;
+            }
+        } else if (context === "dim") {
+            const panel = document.getElementById("detail-panel");
+            const placeholder = document.getElementById("detail-placeholder");
+            if (currentDetailSeal && !isFamilyAllowedForContext("dim", currentDetailSeal.family)) {
+                if (panel) panel.classList.add("hidden");
+                if (placeholder) placeholder.classList.remove("hidden");
+                currentDetailSeal = null;
+            }
+        } else if (context === "mfg") {
+            const controller = window.SealApp && window.SealApp.mfgSearch;
+            if (controller && typeof controller.rerun === "function") {
+                controller.rerun();
             }
         }
-        return matches.length ? matches : null;
+    }
+
+    window.SealApp.familyFilters = {
+        getSelectedFamilies,
+        isFamilyAllowed: isFamilyAllowedForContext,
+        handleFamilyChange: handleFamilyFilterChange
+    };
+
+    function updateDetailHeaderBadge(titleElement, family) {
+        if (!titleElement) return;
+        const wrapper = titleElement.parentElement;
+        if (!wrapper || !wrapper.classList.contains("detail-title-group")) return;
+        const existing = wrapper.querySelector(".family-badge");
+        if (existing) existing.remove();
+        const badge = createFamilyBadge(family);
+        if (badge) wrapper.appendChild(badge);
+    }
+    
+    function getFluidCompatibilityForMaterial(categoryKey, materialName) {
+        if (!materialsData || !materialsData.compatibleFluidsByMaterial) return null;
+        if (!materialName) return null;
+        const compat = materialsData.compatibleFluidsByMaterial[categoryKey];
+        if (!compat) return null;
+        const normalized = materialName.toUpperCase();
+        const list = compat[normalized];
+        return list && list.length ? list : null;
     }
 
     // NEW: choose which dimensional row to use for detail view,
@@ -120,14 +204,22 @@ window.SealApp = window.SealApp || {};
         const li = document.createElement("li");
         li.className = "result-item";
         li.dataset.partNumber = seal.part_number;
+        const faData = seal.fa_data || {};
+        const isFaSeal = !!faData.is_fa;
 
         const dim = (seal.dimensional || [])[0] || {};
         const shaft = unit === "inch" ? dim.shaft_in : dim.shaft_mm;
-        const shaftLabel = shaft != null
+        let shaftLabel = shaft != null
             ? formatScalarDim(shaft, unit) + (unit === "inch" ? ' in' : ' mm')
             : "n/a";
+        if (isFaSeal && Array.isArray(faData.shaft_sizes) && faData.shaft_sizes.length) {
+            shaftLabel = faData.shaft_sizes.join(", ");
+        }
 
-        const types = (seal.types || []).join(", ") || PLACEHOLDER;
+        let types = (seal.types || []).join(", ") || PLACEHOLDER;
+        if (isFaSeal && Array.isArray(faData.head_types) && faData.head_types.length) {
+            types = faData.head_types.join(", ");
+        }
         const maxTemp = seal.max_temp_f != null ? seal.max_temp_f + DEG_F : PLACEHOLDER;
 
         const titleRow = document.createElement("div");
@@ -136,6 +228,12 @@ window.SealApp = window.SealApp || {};
         const title = document.createElement("div");
         title.className = "result-title";
         title.textContent = seal.part_number;
+
+        const titleGroup = document.createElement("div");
+        titleGroup.className = "result-title-group";
+        titleGroup.appendChild(title);
+        const familyBadge = createFamilyBadge(seal.family);
+        if (familyBadge) titleGroup.appendChild(familyBadge);
 
         const chips = document.createElement("div");
         chips.className = "result-meta";
@@ -154,7 +252,7 @@ window.SealApp = window.SealApp || {};
         chipTemp.textContent = "Max temp " + maxTemp;
         chips.appendChild(chipTemp);
 
-        titleRow.appendChild(title);
+        titleRow.appendChild(titleGroup);
         titleRow.appendChild(chips);
 
         const foot = document.createElement("div");
@@ -206,6 +304,8 @@ window.SealApp = window.SealApp || {};
     function renderSealDetailsBody(container, seal) {
         container.innerHTML = "";
         const unit = document.querySelector('input[name="unit"]:checked')?.value || "inch";
+        const faData = seal.fa_data || {};
+        const isFaSeal = !!faData.is_fa;
 
         const dimGroup = document.createElement("div");
         dimGroup.className = "detail-group";
@@ -219,17 +319,23 @@ window.SealApp = window.SealApp || {};
         // Use representative dimensional row based on last filters
         const dim = pickRepresentativeDimRow(seal);
 
-        const shaftLabel = formatDimValue(dim, "shaft_in", "shaft_mm", unit) || PLACEHOLDER;
+        let shaftLabel = formatDimValue(dim, "shaft_in", "shaft_mm", unit) || PLACEHOLDER;
         const headOdLabel = formatDimValue(dim, "head_od_in", "head_od_mm", unit) || PLACEHOLDER;
         const boreLabel = formatDimValue(dim, "mating_bore_in", "mating_bore_mm", unit) || PLACEHOLDER;
+        if (isFaSeal && Array.isArray(faData.shaft_sizes) && faData.shaft_sizes.length) {
+            shaftLabel = faData.shaft_sizes.join(", ");
+        }
 
-        // Operating height (from mixed / metric data youâ€™ve mapped into head_oper_*)
-        const operLabel =
+        // Operating height (from mixed / metric data youÃ¢â‚¬â„¢ve mapped into head_oper_*)
+        let operLabel =
             formatDimValue(dim, "head_oper_in", "head_oper_mm", unit) ||
             formatDimValue(dim, "oper_hgt_in", "oper_hgt_mm", unit) || // if you later add these
             null;
+        if (isFaSeal && Array.isArray(faData.oper_heights) && faData.oper_heights.length) {
+            operLabel = faData.oper_heights.join(", ");
+        }
 
-        // Mating ring thickness (from mixed / metric data youâ€™ve mapped into mating_thick_*)
+        // Mating ring thickness (from mixed / metric data youÃ¢â‚¬â„¢ve mapped into mating_thick_*)
         const thickLabel =
             formatDimValue(dim, "mating_thick_in", "mating_thick_mm", unit) ||
             null;
@@ -254,10 +360,13 @@ window.SealApp = window.SealApp || {};
             );
         }
 
-        const headTypeLabel =
+        let headTypeLabel =
             (dim && dim.head_type) ||
             (seal.types || []).join(", ") ||
             PLACEHOLDER;
+        if (isFaSeal && Array.isArray(faData.head_types) && faData.head_types.length) {
+            headTypeLabel = faData.head_types.join(", ");
+        }
         dimGrid.appendChild(
             createDetailGridRow("Head Type", headTypeLabel)
         );
@@ -319,8 +428,25 @@ window.SealApp = window.SealApp || {};
                     if (compatFluids && compatFluids.length) {
                         const icon = document.createElement("span");
                         icon.className = "material-chem-icon";
-                        icon.textContent = "!";
-                        icon.title = "Compatible with: " + compatFluids.join(", ");
+                        const tooltip = document.createElement("span");
+                        tooltip.className = "chem-tooltip";
+                        const title = document.createElement("strong");
+                        title.textContent = "Compatible fluids";
+                        tooltip.appendChild(title);
+                        const list = document.createElement("ul");
+                        const maxDisplay = 8;
+                        compatFluids.slice(0, maxDisplay).forEach(fluid => {
+                            const liFluid = document.createElement("li");
+                            liFluid.textContent = fluid;
+                            list.appendChild(liFluid);
+                        });
+                        if (compatFluids.length > maxDisplay) {
+                            const more = document.createElement("li");
+                            more.textContent = `+${compatFluids.length - maxDisplay} more`;
+                            list.appendChild(more);
+                        }
+                        tooltip.appendChild(list);
+                        icon.appendChild(tooltip);
                         li.appendChild(icon);
                     }
                 });
@@ -413,7 +539,54 @@ window.SealApp = window.SealApp || {};
 
         typeGroup.appendChild(typeBox);
 
+        let faGroup = null;
+
+        function formatFaValues(values) {
+            return (values && values.length) ? values.join(", ") : PLACEHOLDER;
+        }
+
+        function formatFaText(values) {
+            return (values && values.length) ? values.join("; ") : PLACEHOLDER;
+        }
+
+        if (isFaSeal) {
+            faGroup = document.createElement("div");
+            faGroup.className = "detail-group";
+            const faTitle = document.createElement("h4");
+            faTitle.textContent = "FA Seal Head Assembly";
+            faGroup.appendChild(faTitle);
+
+            const faList = document.createElement("ul");
+            faList.className = "detail-list";
+
+            const simpleItems = [
+                ["Head Type", faData.head_types],
+                ["Shaft / Seal Size", faData.shaft_sizes],
+                ["Material Code", faData.material_codes],
+                ["Operating Height", faData.oper_heights],
+            ];
+            simpleItems.forEach(([label, values]) => {
+                const li = document.createElement("li");
+                li.innerHTML = "<strong>" + label + ":</strong> " + formatFaValues(values);
+                faList.appendChild(li);
+            });
+
+            const textItems = [
+                ["Notes", faData.notes],
+                ["Nameplate Data", faData.nameplates],
+                ["Manufacturer Part Numbers", faData.mfg_parts],
+            ];
+            textItems.forEach(([label, values]) => {
+                const li = document.createElement("li");
+                li.innerHTML = "<strong>" + label + ":</strong> " + formatFaText(values);
+                faList.appendChild(li);
+            });
+
+            faGroup.appendChild(faList);
+        }
+
         container.appendChild(dimGroup);
+        if (faGroup) container.appendChild(faGroup);
         container.appendChild(matGroup);
         container.appendChild(featureGroup);
         container.appendChild(typeGroup);
@@ -432,6 +605,7 @@ window.SealApp = window.SealApp || {};
             placeholder.classList.add("hidden");
             panel.classList.remove("hidden");
             title.textContent = part;
+            updateDetailHeaderBadge(title, seal.family);
             renderSealDetailsBody(body, seal);
         } else if (context === "pn") {
             const placeholder = document.getElementById("pn-detail-placeholder");
@@ -442,6 +616,7 @@ window.SealApp = window.SealApp || {};
             placeholder.classList.add("hidden");
             panel.classList.remove("hidden");
             title.textContent = part;
+            updateDetailHeaderBadge(title, seal.family);
             renderSealDetailsBody(body, seal);
         }
     }
@@ -468,6 +643,11 @@ window.SealApp = window.SealApp || {};
 
             const title = document.createElement("h3");
             title.textContent = pn;
+            const titleGroup = document.createElement("div");
+            titleGroup.className = "result-title-group";
+            titleGroup.appendChild(title);
+            const badge = createFamilyBadge(seal.family);
+            if (badge) titleGroup.appendChild(badge);
 
             const removeBtn = document.createElement("button");
             removeBtn.className = "btn-small";
@@ -477,7 +657,7 @@ window.SealApp = window.SealApp || {};
                 removeFromCompare(pn);
             });
 
-            head.appendChild(title);
+            head.appendChild(titleGroup);
             head.appendChild(removeBtn);
             card.appendChild(head);
 
@@ -669,9 +849,18 @@ window.SealApp = window.SealApp || {};
                     if (!sel || sel.value === "") return null;
                     const ix = parseInt(sel.value, 10);
                     return Number.isNaN(ix) ? null : ix;
-                })()
+                })(),
+                allowedFamilies: getSelectedFamilies ? getSelectedFamilies("dim") : null
 
             };
+
+            window.SealApp.lastDimFilters = {
+                shaft: filters.shaft,
+                matingOd: filters.matingOd,
+                headType: filters.headType,
+                matingDesign: filters.matingDesign
+            };
+            window.SealApp.lastDimUnit = unit;
 
             const results = search.filterSeals(filters);
             renderResultsList(resultsList, resultsCount, results, unit);
@@ -717,6 +906,13 @@ window.SealApp = window.SealApp || {};
         const searchBtn = document.getElementById("pn-search-button");
         const resetBtn = document.getElementById("pn-reset-button");
         const input = document.getElementById("pn-search-input");
+        const familyTools = window.SealApp.familyFilters;
+        if (!searchBtn || !resetBtn || !input) return;
+
+        function familyAllowed(seal) {
+            if (!familyTools) return true;
+            return familyTools.isFamilyAllowed("pn", seal?.family);
+        }
 
         searchBtn.addEventListener("click", () => {
             const q = (input.value || "").trim().toUpperCase();
@@ -724,6 +920,10 @@ window.SealApp = window.SealApp || {};
             const seal = search.findSealByPart(q);
             if (!seal) {
                 alert("Part number not found in loaded data.");
+                return;
+            }
+            if (!familyAllowed(seal)) {
+                alert("This part belongs to a filtered family.");
                 return;
             }
             showSealDetails(seal, "pn");
@@ -735,6 +935,10 @@ window.SealApp = window.SealApp || {};
             document.getElementById("pn-suggestions").classList.remove("visible");
             document.getElementById("pn-detail-panel").classList.add("hidden");
             document.getElementById("pn-detail-placeholder").classList.remove("hidden");
+            document.querySelectorAll('.family-checkbox[data-context="pn"]').forEach(box => {
+                box.checked = true;
+            });
+            if (familyTools) familyTools.handleFamilyChange("pn");
         });
 
         document.getElementById("pn-detail-add-compare").addEventListener("click", () => {
@@ -769,11 +973,104 @@ window.SealApp = window.SealApp || {};
         const list = document.getElementById("mfg-results-list");
         const count = document.getElementById("mfg-results-count");
         const suggList = document.getElementById("mfg-suggestions");
+        const detailPanel = document.getElementById("mfg-detail-panel");
+        const detailPlaceholder = document.getElementById("mfg-detail-placeholder");
+        const detailTitle = document.getElementById("mfg-detail-title");
+        const detailBody = document.getElementById("mfg-detail-body");
+        const familyTools = window.SealApp.familyFilters;
+
+        function familyAllowsCrossRef(rec) {
+            if (!familyTools) return true;
+            if (!rec || !rec.seal_part) return true;
+            const seal = sealsByPart.get(rec.seal_part.toUpperCase());
+            if (!seal) return true;
+            return familyTools.isFamilyAllowed("mfg", seal.family);
+        }
+
+        function clearMfgDetail() {
+            if (!detailPanel || !detailPlaceholder || !detailBody || !detailTitle) return;
+            detailPanel.classList.add("hidden");
+            detailPlaceholder.classList.remove("hidden");
+            detailBody.innerHTML = "";
+            detailTitle.textContent = "";
+        }
+
+        function buildMfgSpecRows(rec) {
+            const rows = [];
+            const sourceKey = rec.source || rec.sourceKey || "";
+            const addRow = (label, value) => {
+                const cleaned = (value || "").toString().trim();
+                if (!cleaned) return;
+                rows.push({ label, value: cleaned });
+            };
+            addRow("Source", sourceKey.toUpperCase());
+            addRow("Brand", rec.brand);
+            addRow("Manufacturer Part / Model", rec.mfg_part || rec.model);
+            addRow("U.S. Seal Part", rec.seal_part);
+
+            if (sourceKey === "flygt") {
+                addRow("Seal Position", (rec.position || "").toUpperCase());
+                addRow("Seal Size (mm)", rec.seal_size_mm);
+                addRow("Material Mix", rec.materials);
+                addRow("O-Ring Kit Part", rec.o_ring_kit);
+            } else if (sourceKey === "pump_mfg") {
+                addRow("Seal Size", rec.seal_size);
+                addRow("Head Type", rec.head_type);
+                addRow("Mating Ring", rec.mating_ring);
+                addRow("Mating Ring Bore", rec.mating_bore);
+                addRow("Material Code", rec.material_code);
+                addRow("Notes", rec.notes);
+                addRow("Pump Nameplate Data", rec.pump_nameplate);
+            } else if (sourceKey === "valguard") {
+                addRow("Shaft Size", rec.shaft_size);
+                addRow("Head Type", rec.head_type);
+                addRow("Mating Ring", rec.mating_ring);
+                addRow("Mating Ring Bore", rec.mating_ring_bore);
+                addRow("Mating Ring OD", rec.mating_ring_od);
+                addRow("Mating Ring Thickness", rec.mating_ring_thick);
+                addRow("Operating Height", rec.oper_height);
+                addRow("Material Code", rec.material_code);
+                addRow("Features", rec.features);
+                addRow("Notes", rec.notes);
+                addRow("Pump Nameplate Data", rec.pump_nameplate);
+            }
+            return rows;
+        }
+
+        function renderMfgDetail(rec) {
+            if (!detailPanel || !detailPlaceholder || !detailBody || !detailTitle) return;
+            if (!rec) {
+                clearMfgDetail();
+                return;
+            }
+            detailPlaceholder.classList.add("hidden");
+            detailPanel.classList.remove("hidden");
+            detailTitle.textContent = rec.mfg_part || rec.model || rec.seal_part || "Cross-reference detail";
+            detailBody.innerHTML = "";
+            const rows = buildMfgSpecRows(rec);
+            if (!rows.length) {
+                const p = document.createElement("p");
+                p.className = "muted";
+                p.textContent = "No additional specifications were found for this entry.";
+                detailBody.appendChild(p);
+                return;
+            }
+            const grid = document.createElement("div");
+            grid.className = "detail-grid";
+            rows.forEach(({ label, value }) => {
+                grid.appendChild(createDetailGridRow(label, value));
+            });
+            detailBody.appendChild(grid);
+        }
 
         function renderMfgResults(results) {
             list.innerHTML = "";
-            count.textContent = results.length + " result" + (results.length === 1 ? "" : "s");
+            let visibleCount = 0;
             for (const rec of results) {
+                if (!familyAllowsCrossRef(rec)) {
+                    continue;
+                }
+                visibleCount++;
                 const li = document.createElement("li");
                 li.className = "result-item";
                 li.dataset.partNumber = rec.seal_part || "";
@@ -784,6 +1081,16 @@ window.SealApp = window.SealApp || {};
                 const left = document.createElement("div");
                 left.className = "result-title";
                 left.textContent = rec.mfg_part || rec.model || "(no mfg part)";
+                const titleGroup = document.createElement("div");
+                titleGroup.className = "result-title-group";
+                titleGroup.appendChild(left);
+                if (rec.seal_part) {
+                    const matchedSeal = sealsByPart.get(rec.seal_part.toUpperCase());
+                    if (matchedSeal) {
+                        const badge = createFamilyBadge(matchedSeal.family);
+                        if (badge) titleGroup.appendChild(badge);
+                    }
+                }
 
                 const chips = document.createElement("div");
                 chips.className = "result-meta";
@@ -795,7 +1102,7 @@ window.SealApp = window.SealApp || {};
 
                 const chipSource = document.createElement("span");
                 chipSource.className = "result-chip";
-                chipSource.textContent = rec.source || rec.sourceKey || "";
+                chipSource.textContent = (rec.source || rec.sourceKey || "").toUpperCase();
                 chips.appendChild(chipSource);
 
                 function openSealDetail() {
@@ -820,6 +1127,7 @@ window.SealApp = window.SealApp || {};
                     chipSeal.addEventListener("dblclick", (ev) => {
                         ev.stopPropagation();
                         openSealDetail();
+                        renderMfgDetail(rec);
                     });
                     chipSeal.addEventListener("keydown", (ev) => {
                         if (ev.key === "Enter") {
@@ -830,7 +1138,7 @@ window.SealApp = window.SealApp || {};
                     chips.appendChild(chipSeal);
                 }
 
-                titleRow.appendChild(left);
+                titleRow.appendChild(titleGroup);
                 titleRow.appendChild(chips);
                 li.appendChild(titleRow);
 
@@ -847,9 +1155,15 @@ window.SealApp = window.SealApp || {};
                 li.appendChild(foot);
 
                 li.addEventListener("click", openSealDetail);
+                li.addEventListener("dblclick", (ev) => {
+                    ev.stopPropagation();
+                    renderMfgDetail(rec);
+                    openSealDetail();
+                });
 
                 list.appendChild(li);
             }
+            count.textContent = visibleCount + " result" + (visibleCount === 1 ? "" : "s");
         }
 
         function updateMfgSuggestions() {
@@ -880,13 +1194,14 @@ window.SealApp = window.SealApp || {};
                 if (rec.mfg_part) labelParts.push(rec.mfg_part);
                 if (rec.brand) labelParts.push(rec.brand);
                 if (rec.model) labelParts.push(rec.model);
-                li.textContent = labelParts.join(" • ");
+                li.textContent = labelParts.join(" \u2022 ");
                 li.addEventListener("click", () => {
                     input.value = rec.mfg_part || rec.model || "";
                     suggList.innerHTML = "";
                     suggList.classList.remove("visible");
                     const results = search.searchXrefsByMfgTerm(input.value);
                     renderMfgResults(results);
+                    clearMfgDetail();
                 });
                 suggList.appendChild(li);
             }
@@ -905,6 +1220,7 @@ window.SealApp = window.SealApp || {};
             if (!q) return;
             const results = search.searchXrefsByMfgTerm(q);
             renderMfgResults(results);
+             clearMfgDetail();
         });
 
         resetBtn.addEventListener("click", () => {
@@ -913,22 +1229,46 @@ window.SealApp = window.SealApp || {};
             count.textContent = "0 results";
             suggList.innerHTML = "";
             suggList.classList.remove("visible");
+            document.querySelectorAll('.family-checkbox[data-context="mfg"]').forEach(box => {
+                box.checked = true;
+            });
+            if (familyTools) familyTools.handleFamilyChange("mfg");
+            clearMfgDetail();
         });
+
+        function rerunCurrentMfgSearch() {
+            const q = (input.value || "").trim();
+            if (!q) {
+                list.innerHTML = "";
+                count.textContent = "0 results";
+                return;
+            }
+            const results = search.searchXrefsByMfgTerm(q);
+            renderMfgResults(results);
+        }
+
+        window.SealApp.mfgSearch = {
+            rerun: rerunCurrentMfgSearch
+        };
     }
 
     function initAdvancedToggle() {
         const toggle = document.getElementById("advanced-toggle");
         const panel = document.getElementById("advanced-filters");
+        if (!toggle || !panel) return;
+        const collapsedLabel = "Advanced filters \u25B8";
+        const expandedLabel = "Advanced filters \u25BE";
+        toggle.textContent = collapsedLabel;
         toggle.addEventListener("click", () => {
             const expanded = panel.classList.contains("expanded");
             if (expanded) {
                 panel.classList.remove("expanded");
                 panel.classList.add("collapsed");
-                toggle.textContent = "Advanced filters â–¾";
+                toggle.textContent = collapsedLabel;
             } else {
                 panel.classList.add("expanded");
                 panel.classList.remove("collapsed");
-                toggle.textContent = "Advanced filters â–´";
+                toggle.textContent = expandedLabel;
             }
         });
     }

@@ -19,13 +19,68 @@ html, body {
     justify-content: center;
     margin-left: 4px;
     font-size: 0.65rem;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     border-radius: 999px;
     border: 1px solid #f97316;
     color: #b45309;
     background: #fffbeb;
     cursor: help;
+    position: relative;
+}
+
+.material-chem-icon::after {
+    content: "!";
+    font-weight: 700;
+}
+
+.chem-tooltip {
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%) translateY(6px);
+    background: #ffffff;
+    color: #111827;
+    border: 1px solid #f97316;
+    border-radius: 8px;
+    padding: 8px 10px;
+    width: 220px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.12);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    z-index: 20;
+}
+
+.chem-tooltip strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    color: #b45309;
+}
+
+.chem-tooltip ul {
+    list-style: disc;
+    padding-left: 16px;
+    margin: 0;
+    max-height: 140px;
+    overflow: auto;
+}
+
+.chem-tooltip li {
+    font-size: 0.72rem;
+    line-height: 1.2;
+    color: #4b5563;
+}
+
+.material-chem-icon:hover .chem-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.filter-select option.option-converted {
+    background-color: #fff7cc;
+    font-weight: 600;
 }
 
 
@@ -75,6 +130,8 @@ body {
     letter-spacing: 0.06em;
     border: 1px solid rgba(148, 163, 184, 0.8);
 }
+
+select#fluid-metals-select{display:none;}
 
 .badge-hot {
     background: #fee2e2;
@@ -211,6 +268,28 @@ h3 {
 
 .filter-input::placeholder {
     color: #9ca3af;
+}
+
+.family-filter-group .family-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.checkbox-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+.checkbox-pill input {
+    accent-color: #2563eb;
 }
 
 .unit-toggle {
@@ -378,6 +457,12 @@ h3 {
     font-size: 0.86rem;
 }
 
+.result-title-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
 .result-title {
     font-weight: 600;
     color: #111827;
@@ -396,6 +481,45 @@ h3 {
     border-radius: 999px;
     border: 1px solid #e5e7eb;
     background: #ffffff;
+}
+
+.family-badge {
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.badge-standard {
+    background: #ecfccb;
+    color: #3f6212;
+    border: 1px solid #a3e635;
+}
+
+.badge-hd {
+    background: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #93c5fd;
+}
+
+.badge-mating {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fcd34d;
+}
+
+.badge-other {
+    background: #e5e7eb;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.badge-seal-head {
+    background: #ffe4e6;
+    color: #be123c;
+    border: 1px solid #fecdd3;
 }
 
 .result-chip--link {
@@ -445,6 +569,13 @@ h3 {
 
 .detail-header h3 {
     font-size: 1rem;
+    margin: 0;
+}
+
+.detail-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .detail-header-actions {

@@ -23,6 +23,13 @@ window.SealApp = window.SealApp || {};
      *   matingDesign: string
      * }
      */
+    function familyIsAllowed(seal, allowedFamilies) {
+        if (!Array.isArray(allowedFamilies)) return true;
+        if (!allowedFamilies.length) return false;
+        const family = (seal.family || "other");
+        return allowedFamilies.includes(family);
+    }
+
     function getUniqueOptions(unit, filters) {
         filters = filters || {};
         const shaftRaw = filters.shaft;
@@ -42,6 +49,7 @@ window.SealApp = window.SealApp || {};
         let hasUnspecifiedMating = false;
 
         for (const seal of seals) {
+            if (!familyIsAllowed(seal, filters.allowedFamilies)) continue;
             if (!sealMatchesMaterialFilters(seal, filters)) continue;
             for (const dim of seal.dimensional || []) {
                 let shaft, shaftConv = false;
@@ -276,8 +284,10 @@ window.SealApp = window.SealApp || {};
     }
 
     function filterSeals(filters) {
+        filters = filters || {};
         const results = [];
         for (const seal of seals) {
+            if (!familyIsAllowed(seal, filters.allowedFamilies)) continue;
             if (!sealMatchesDimFilters(seal, filters)) continue;
             if (!sealMatchesMaterialFilters(seal, filters)) continue;
             results.push(seal);
