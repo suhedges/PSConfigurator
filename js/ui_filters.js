@@ -177,23 +177,59 @@ window.SealApp = window.SealApp || {};
 
     function rebuildDimensionalOptions(unit, filters) {
         if (!search || !search.getUniqueOptions) return;
-        const result = search.getUniqueOptions(unit, filters);
+        const baseFilters = Object.assign({}, filters);
+
+        const shaftSel = document.getElementById("shaft-size-select");
+        const shaftResult = search.getUniqueOptions(
+            unit,
+            Object.assign({}, baseFilters, { shaft: "" })
+        );
         fillDimensionSelect(
-            document.getElementById("shaft-size-select"),
+            shaftSel,
             unit === "inch" ? "Select shaft (inch)" : "Select shaft (mm)",
-            result.shaft || [],
+            (shaftResult && shaftResult.shaft) || [],
             filters.shaft,
-            result.includeUnspecifiedShaft
+            shaftResult && shaftResult.includeUnspecifiedShaft
+        );
+
+        const matingSel = document.getElementById("mating-od-select");
+        const matingResult = search.getUniqueOptions(
+            unit,
+            Object.assign({}, baseFilters, { matingOd: "" })
         );
         fillDimensionSelect(
-            document.getElementById("mating-od-select"),
+            matingSel,
             "(optional)",
-            result.matingOd || [],
+            (matingResult && matingResult.matingOd) || [],
             filters.matingOd,
-            result.includeUnspecifiedMating
+            matingResult && matingResult.includeUnspecifiedMating
         );
-        fillSimpleSelect(document.getElementById("head-type-select"), "(optional)", result.headTypes || [], filters.headType);
-        fillSimpleSelect(document.getElementById("mating-design-select"), "(optional)", result.matingDesigns || [], filters.matingDesign);
+
+        const headSel = document.getElementById("head-type-select");
+        const headResult = search.getUniqueOptions(
+            unit,
+            Object.assign({}, baseFilters, { headType: "" })
+        );
+        fillSimpleSelect(
+            headSel,
+            "(optional)",
+            (headResult && headResult.headTypes) || [],
+            filters.headType
+        );
+        if (headSel) headSel.disabled = headSel.options.length <= 1;
+
+        const designSel = document.getElementById("mating-design-select");
+        const designResult = search.getUniqueOptions(
+            unit,
+            Object.assign({}, baseFilters, { matingDesign: "" })
+        );
+        fillSimpleSelect(
+            designSel,
+            "(optional)",
+            (designResult && designResult.matingDesigns) || [],
+            filters.matingDesign
+        );
+        if (designSel) designSel.disabled = designSel.options.length <= 1;
     }
 
     function rebuildAdvancedOptions(unit, filters) {
