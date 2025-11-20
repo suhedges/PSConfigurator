@@ -137,7 +137,7 @@ window.SealApp = window.SealApp || {};
         (values || []).forEach(temp => {
             const opt = document.createElement("option");
             opt.value = String(temp);
-            opt.textContent = "\\u2265 " + temp + "\\u00B0F";
+            opt.textContent = "≥ " + temp + "°F";
             selectEl.appendChild(opt);
         });
         if (current && Array.from(selectEl.options).some(opt => opt.value === current)) {

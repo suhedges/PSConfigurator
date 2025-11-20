@@ -355,6 +355,7 @@ h3 {
 .btn-ghost:hover {
     background: #f8fafc;
     border-color: #94a3b8;
+    cursor:pointer;
 }
 
 .btn-small {
@@ -633,6 +634,59 @@ h3 {
 .detail-value {
     font-weight: 500;
 }
+.design-image-tooltip {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    position: relative;
+    cursor: pointer;
+}
+.design-image-tooltip__icon {
+    width: 17px;
+    height: 17px;
+    border-radius: 999px;
+    background: #1d4ed8;
+    color: #fff;
+    font-size: 0.68rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+.design-image-tooltip__preview {
+    position: absolute;
+    top: 115%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffffff;
+    border: 1px solid #cbd5f5;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.15);
+    padding: 8px;
+    border-radius: 10px;
+    width: 190px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease-in-out;
+    z-index: 40;
+}
+.design-image-tooltip:hover .design-image-tooltip__preview,
+.design-image-tooltip:focus .design-image-tooltip__preview,
+.design-image-tooltip:focus-within .design-image-tooltip__preview {
+    opacity: 1;
+}
+.design-image-tooltip__img {
+    width: 100%;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+.design-image-tooltip__caption {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: #475569;
+    text-align: center;
+}
 
 .compare-panel.hidden {
     display: none;
@@ -688,6 +742,8 @@ h3 {
 .footer-note {
     margin-left: 10px;
 }
+
+.footer-right{display:none}
 
 /* Suggestions */
 

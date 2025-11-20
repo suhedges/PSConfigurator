@@ -4,6 +4,7 @@ window.SealApp = window.SealApp || {};
     const search = window.SealApp.search;
     const config = window.SealApp.config;
     const materialsData = window.SealApp.materialsData;
+    const designAssets = window.SealApp.designAssets || {};
     const sealsByPart = window.SealApp.sealsByPart;
     const PLACEHOLDER = "\u2014";
     const DEG_F = "\u00B0F";
@@ -22,6 +23,16 @@ window.SealApp = window.SealApp || {};
         mating_ring: "badge-mating",
         other: "badge-other"
     };
+    function buildDesignImageMap(list) {
+        const map = new Map();
+        (list || []).forEach(item => {
+            if (!item || !item.code || !item.image) return;
+            map.set(String(item.code).toUpperCase(), item.image);
+        });
+        return map;
+    }
+    const HEAD_IMAGE_MAP = buildDesignImageMap(designAssets.headTypes || []);
+    const MATING_IMAGE_MAP = buildDesignImageMap(designAssets.matingDesigns || []);
 
     let currentDetailSeal = null;
     let compareSelection = [];
@@ -85,6 +96,35 @@ window.SealApp = window.SealApp || {};
         span.className = "family-badge " + getFamilyBadgeClass(family);
         span.textContent = getFamilyLabel(family);
         return span;
+    }
+
+    function createDesignImageTooltip(code, label, typeLabel, map) {
+        if (!code || !map || !map.size) return null;
+        const imgSrc = map.get(String(code).toUpperCase());
+        if (!imgSrc) return null;
+        const wrapper = document.createElement("span");
+        wrapper.className = "design-image-tooltip";
+        wrapper.setAttribute("aria-label", "View " + (typeLabel || "design") + " image");
+        wrapper.tabIndex = 0;
+
+        const icon = document.createElement("span");
+        icon.className = "design-image-tooltip__icon";
+        icon.textContent = "i";
+        wrapper.appendChild(icon);
+
+        const preview = document.createElement("span");
+        preview.className = "design-image-tooltip__preview";
+        const image = document.createElement("img");
+        image.src = imgSrc;
+        image.alt = (label || typeLabel || "") + (code ? " (" + code + ")" : "");
+        image.className = "design-image-tooltip__img";
+        preview.appendChild(image);
+        const caption = document.createElement("span");
+        caption.className = "design-image-tooltip__caption";
+        caption.textContent = (label || typeLabel || "Design") + (code ? " (" + code + ")" : "");
+        preview.appendChild(caption);
+        wrapper.appendChild(preview);
+        return wrapper;
     }
 
     function getFamilyCheckboxes(context) {
@@ -412,21 +452,40 @@ window.SealApp = window.SealApp || {};
             );
         }
 
+        let headTypeCode = dim && dim.head_type ? String(dim.head_type).toUpperCase() : "";
         let headTypeLabel =
             (dim && dim.head_type) ||
             (seal.types || []).join(", ") ||
             PLACEHOLDER;
         if (isFaSeal && Array.isArray(faData.head_types) && faData.head_types.length) {
             headTypeLabel = faData.head_types.join(", ");
+            if (!headTypeCode) {
+                headTypeCode = String(faData.head_types[0] || "").toUpperCase();
+            }
         }
-        dimGrid.appendChild(
-            createDetailGridRow("Head Type", headTypeLabel)
-        );
+        const headRow = createDetailGridRow("Head Type", headTypeLabel);
+        if (headRow) {
+            const valueEl = headRow.querySelector(".detail-value");
+            if (valueEl) {
+                valueEl.textContent = headTypeLabel || PLACEHOLDER;
+                const tooltip = createDesignImageTooltip(headTypeCode, headTypeLabel, "Head Type", HEAD_IMAGE_MAP);
+                if (tooltip) valueEl.appendChild(tooltip);
+            }
+            dimGrid.appendChild(headRow);
+        }
 
+        let matingDesignCode = dim && dim.mating_design ? String(dim.mating_design).toUpperCase() : "";
         const designLabel = dim && dim.mating_design ? dim.mating_design : PLACEHOLDER;
-        dimGrid.appendChild(
-            createDetailGridRow("Mating Ring Design", designLabel)
-        );
+        const designRow = createDetailGridRow("Mating Ring Design", designLabel);
+        if (designRow) {
+            const valueEl = designRow.querySelector(".detail-value");
+            if (valueEl) {
+                valueEl.textContent = designLabel || PLACEHOLDER;
+                const tooltip = createDesignImageTooltip(matingDesignCode, designLabel, "Mating Ring Design", MATING_IMAGE_MAP);
+                if (tooltip) valueEl.appendChild(tooltip);
+            }
+            dimGrid.appendChild(designRow);
+        }
 
         const handLabel =
             (seal.right_hand === true ? "Right hand " : "") +
