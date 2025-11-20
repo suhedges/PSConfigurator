@@ -49,12 +49,30 @@ window.SealApp = window.SealApp || {};
         });
     }
 
-    function formatDimensionOption(value) {
-        if (value == null) return "";
-        return value.toFixed(3).replace(/\.000$/, "");
+    function formatDimNumberLocal(value, unit) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return "";
+        const digits = unit === "mm" ? 2 : 3;
+        const fixed = num.toFixed(digits);
+        if (num === 0) {
+            return digits === 3 ? "0.000" : "0.00";
+        }
+        if (Math.abs(num) < 1) {
+            const dotIdx = fixed.indexOf(".");
+            if (dotIdx >= 0) {
+                return (num < 0 ? "-" : "") + fixed.slice(dotIdx);
+            }
+            return (num < 0 ? "-0." : "0.") + "0".repeat(digits);
+        }
+        return fixed.replace(/0+$/, "").replace(/\.$/, "");
     }
 
-    function fillDimensionSelect(selectEl, placeholder, entries, previousValue, includeUnspecified) {
+    function formatDimensionOption(value, unit) {
+        if (value == null) return "";
+        return formatDimNumberLocal(value, unit);
+    }
+
+    function fillDimensionSelect(selectEl, placeholder, entries, previousValue, includeUnspecified, unit) {
         if (!selectEl) return;
         const current = previousValue || selectEl.value || "";
         selectEl.innerHTML = "";
@@ -71,7 +89,7 @@ window.SealApp = window.SealApp || {};
         (entries || []).forEach(entry => {
             const opt = document.createElement("option");
             opt.value = entry.value;
-            opt.textContent = formatDimensionOption(entry.value);
+            opt.textContent = formatDimensionOption(entry.value, unit);
             if (entry.converted) {
                 opt.classList.add("option-converted");
                 opt.style.backgroundColor = "#fff7cc";
@@ -119,7 +137,7 @@ window.SealApp = window.SealApp || {};
         (values || []).forEach(temp => {
             const opt = document.createElement("option");
             opt.value = String(temp);
-            opt.textContent = "\u2265 " + temp + "\u00B0F";
+            opt.textContent = "\\u2265 " + temp + "\\u00B0F";
             selectEl.appendChild(opt);
         });
         if (current && Array.from(selectEl.options).some(opt => opt.value === current)) {
@@ -189,7 +207,8 @@ window.SealApp = window.SealApp || {};
             unit === "inch" ? "Select shaft (inch)" : "Select shaft (mm)",
             (shaftResult && shaftResult.shaft) || [],
             filters.shaft,
-            shaftResult && shaftResult.includeUnspecifiedShaft
+            shaftResult && shaftResult.includeUnspecifiedShaft,
+            unit
         );
 
         const matingSel = document.getElementById("mating-od-select");
@@ -202,7 +221,8 @@ window.SealApp = window.SealApp || {};
             "(optional)",
             (matingResult && matingResult.matingOd) || [],
             filters.matingOd,
-            matingResult && matingResult.includeUnspecifiedMating
+            matingResult && matingResult.includeUnspecifiedMating,
+            unit
         );
 
         const headSel = document.getElementById("head-type-select");

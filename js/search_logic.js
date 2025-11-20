@@ -6,6 +6,19 @@ window.SealApp = window.SealApp || {};
     const materialsData = window.SealApp.materialsData;
     const UNSPECIFIED_DIM_VALUE = "__UNSPECIFIED__";
     window.SealApp.UNSPECIFIED_DIM_VALUE = UNSPECIFIED_DIM_VALUE;
+    const FLUID_FILTER_KEYS = {
+        secondary: "fluidSecondaryIndex",
+        faces: "fluidFacesIndex",
+        metals: "fluidMetalsIndex"
+    };
+    const FLUID_INDEX_MAP = (() => {
+        const map = new Map();
+        (materialsData.fluids || []).forEach((rec, idx) => {
+            if (!rec || !rec.fluid) return;
+            map.set(rec.fluid.toUpperCase(), idx);
+        });
+        return map;
+    })();
 
     function approxEqual(a, b, tol) {
         if (a == null || b == null) return false;
@@ -48,9 +61,9 @@ window.SealApp = window.SealApp || {};
         let hasUnspecifiedShaft = false;
         let hasUnspecifiedMating = false;
 
-        for (const seal of seals) {
-            if (!familyIsAllowed(seal, filters.allowedFamilies)) continue;
-            if (!sealMatchesMaterialFilters(seal, filters)) continue;
+        const filteredSeals = filterSeals(filters);
+
+        for (const seal of filteredSeals) {
             for (const dim of seal.dimensional || []) {
                 let shaft, shaftConv = false;
                 let matingOd, matingConv = false;
@@ -141,20 +154,23 @@ window.SealApp = window.SealApp || {};
     }
 
     function sealMatchesDimFilters(seal, filters) {
-        // For SEARCH button we still require unit + shaft
-        if (!filters.unit || !filters.shaft) return true;
-
-        const unit = filters.unit;
+        const unit = filters.unit || "inch";
+        const hasShaftFilter = Boolean(filters.shaft);
         const wantsUnspecifiedShaft = filters.shaft === UNSPECIFIED_DIM_VALUE;
+        const shaftTarget =
+            hasShaftFilter && !wantsUnspecifiedShaft ? parseFloat(filters.shaft) : null;
+        const hasMatingFilter = Boolean(filters.matingOd);
         const wantsUnspecifiedMating = filters.matingOd === UNSPECIFIED_DIM_VALUE;
-        const shaftTarget = wantsUnspecifiedShaft ? null : parseFloat(filters.shaft);
-        const matingTarget = wantsUnspecifiedMating
-            ? null
-            : filters.matingOd
-                ? parseFloat(filters.matingOd)
-                : null;
-        const headType = filters.headType || "";
-        const matingDesign = filters.matingDesign || "";
+        const matingTarget =
+            hasMatingFilter && !wantsUnspecifiedMating ? parseFloat(filters.matingOd) : null;
+        const headType = (filters.headType || "").toUpperCase();
+        const matingDesign = (filters.matingDesign || "").toUpperCase();
+        const needsFilter =
+            hasShaftFilter || wantsUnspecifiedShaft ||
+            hasMatingFilter || wantsUnspecifiedMating ||
+            !!headType || !!matingDesign;
+
+        if (!needsFilter) return true;
 
         for (const dim of seal.dimensional || []) {
             let shaft, matingOd;
@@ -170,21 +186,31 @@ window.SealApp = window.SealApp || {};
             if (!Number.isFinite(shaft)) shaft = null;
             if (!Number.isFinite(matingOd)) matingOd = null;
 
-            if (wantsUnspecifiedShaft) {
-                if (shaft != null) continue;
-            } else {
-                if (shaft == null) continue;
-                if (!approxEqual(shaft, shaftTarget)) continue;
+            if (hasShaftFilter) {
+                if (wantsUnspecifiedShaft) {
+                    if (shaft != null) continue;
+                } else {
+                    if (shaft == null || !approxEqual(shaft, shaftTarget)) continue;
+                }
             }
 
-            if (wantsUnspecifiedMating) {
-                if (matingOd != null) continue;
-            } else if (matingTarget != null) {
-                if (matingOd == null || !approxEqual(matingOd, matingTarget)) continue;
+            if (hasMatingFilter) {
+                if (wantsUnspecifiedMating) {
+                    if (matingOd != null) continue;
+                } else if (matingTarget != null) {
+                    if (matingOd == null || !approxEqual(matingOd, matingTarget)) continue;
+                }
             }
 
-            if (headType && (dim.head_type || "").toUpperCase() !== headType.toUpperCase()) continue;
-            if (matingDesign && (dim.mating_design || "").toUpperCase() !== matingDesign.toUpperCase()) continue;
+            if (headType) {
+                const ht = (dim.head_type || "").toUpperCase();
+                if (ht !== headType) continue;
+            }
+
+            if (matingDesign) {
+                const md = (dim.mating_design || "").toUpperCase();
+                if (md !== matingDesign) continue;
+            }
 
             return true;
         }
@@ -214,31 +240,57 @@ window.SealApp = window.SealApp || {};
         if (!materials.length) return false;
 
         const okSet = new Set(okList);
-        return materials.some(m => okSet.has(m));
+        const normalization =
+            (materialsData.chartNormalization && materialsData.chartNormalization[categoryKey]) || {};
+
+        return materials.some(rawMat => {
+            if (!rawMat) return false;
+            const normalized = normalization[rawMat.toUpperCase()] || [rawMat.toUpperCase()];
+            return normalized.some(n => okSet.has(n));
+        });
     }
 
-    // Build the <option> list for ONE of the three fluid filters
-    //   categoryKey: "secondary" | "faces" | "metals"
-    //   filters:     full filter object without that category's own fluid index set
     function collectFluidOptionsForCategory(categoryKey, filters) {
-        const results = filterSeals(filters);
-        const fluids = materialsData.fluids || [];
-        const available = [];
+        const compatLookup =
+            materialsData.compatibleFluidsByMaterial &&
+            materialsData.compatibleFluidsByMaterial[categoryKey];
+        const normalization =
+            materialsData.chartNormalization &&
+            materialsData.chartNormalization[categoryKey];
+        if (!compatLookup || !normalization) return [];
 
-        for (let idx = 0; idx < fluids.length; idx++) {
-            const rec = fluids[idx];
-            if (!rec) continue;
+        const cloned = Object.assign({}, filters);
+        const key = FLUID_FILTER_KEYS[categoryKey];
+        if (key) cloned[key] = null;
+        const results = filterSeals(cloned);
+        const fluidLabels = new Set();
 
-            const hasMatch = results.some(seal =>
-                isSealCompatibleWithFluidCategory(seal, rec, categoryKey)
-            );
-
-            if (hasMatch) {
-                available.push({ value: idx, label: rec.fluid });
-            }
+        for (const seal of results) {
+            const mats = (seal.materials && seal.materials[categoryKey]) || [];
+            mats.forEach(mat => {
+                if (!mat) return;
+                const normalized = normalization[mat.toUpperCase()] || [mat.toUpperCase()];
+                normalized.forEach(code => {
+                    const fluids = compatLookup[code];
+                    if (!fluids) return;
+                    fluids.forEach(name => fluidLabels.add(name));
+                });
+            });
         }
 
-        return available;
+        const options = [];
+        fluidLabels.forEach(label => {
+            const idx = FLUID_INDEX_MAP.get((label || "").toUpperCase());
+            if (idx == null) return;
+            const testFilters = Object.assign({}, filters);
+            if (key) testFilters[key] = idx;
+            const remaining = filterSeals(testFilters);
+            if (remaining.length) {
+                options.push({ value: idx, label });
+            }
+        });
+        options.sort((a, b) => a.label.localeCompare(b.label));
+        return options;
     }
 
     // Extend material filters with per-category fluid compatibility

@@ -28,13 +28,41 @@ window.SealApp = window.SealApp || {};
 
     function cleanLines(list) {
         const result = [];
+        let buffer = "";
+
+        function flushBuffer() {
+            if (!buffer) return;
+            const text = buffer.trim();
+            buffer = "";
+            if (!text || text.toLowerCase() === "nan") return;
+            result.push(text);
+        }
+
         (list || []).forEach(item => {
-            if (item == null) return;
-            const str = String(item).trim();
-            if (!str) return;
-            if (str.toLowerCase() === "nan") return;
-            result.push(str);
+            if (item == null) {
+                flushBuffer();
+                return;
+            }
+            const raw = String(item);
+            const trimmed = raw.trim();
+            if (!trimmed) {
+                if (raw && /\s/.test(raw)) buffer += " ";
+                return;
+            }
+            if (
+                trimmed.length === 1 &&
+                raw.length === 1 &&
+                /[A-Za-z0-9]/.test(trimmed)
+            ) {
+                buffer += trimmed;
+                return;
+            }
+            flushBuffer();
+            if (trimmed.toLowerCase() === "nan") return;
+            result.push(trimmed);
         });
+
+        flushBuffer();
         return result;
     }
 
@@ -171,6 +199,24 @@ window.SealApp = window.SealApp || {};
         return seal.dimensional[0];
     }
 
+    function formatDimNumber(value, unit) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return "";
+        const digits = unit === "mm" ? 2 : 3;
+        const fixed = num.toFixed(digits);
+        if (num === 0) {
+            return digits === 3 ? "0.000" : "0.00";
+        }
+        if (Math.abs(num) < 1) {
+            const dotIdx = fixed.indexOf(".");
+            if (dotIdx >= 0) {
+                return (num < 0 ? "-" : "") + fixed.slice(dotIdx);
+            }
+            return (num < 0 ? "-0." : "0.") + "0".repeat(digits);
+        }
+        return fixed.replace(/0+$/, "").replace(/\.$/, "");
+    }
+
     // NEW: format a specific dimensional field (in/mm) from a dimensional row
     function formatDimValue(dim, fieldIn, fieldMm, unit) {
         if (!dim) return null;
@@ -178,26 +224,28 @@ window.SealApp = window.SealApp || {};
         const vMm = dim[fieldMm];
 
         if (unit === "inch" && vIn != null) {
-            return vIn.toFixed(3).replace(/0+$/,"").replace(/\.$/,"") + " in";
+            const formatted = formatDimNumber(vIn, "inch");
+            return formatted ? formatted + " in" : null;
         }
         if (unit === "mm" && vMm != null) {
-            return vMm.toFixed(2).replace(/0+$/,"").replace(/\.$/,"") + " mm";
+            const formatted = formatDimNumber(vMm, "mm");
+            return formatted ? formatted + " mm" : null;
         }
         // fallback: whichever we have
         if (vIn != null) {
-            return vIn.toFixed(3).replace(/0+$/,"").replace(/\.$/,"") + " in";
+            const formatted = formatDimNumber(vIn, "inch");
+            return formatted ? formatted + " in" : null;
         }
         if (vMm != null) {
-            return vMm.toFixed(2).replace(/0+$/,"").replace(/\.$/,"") + " mm";
+            const formatted = formatDimNumber(vMm, "mm");
+            return formatted ? formatted + " mm" : null;
         }
         return null;
     }
 
     // Renamed: scalar formatter used for list chips, etc.
     function formatScalarDim(value, unit) {
-        if (value == null || isNaN(value)) return "";
-        const digits = unit === "inch" ? 3 : 2;
-        return value.toFixed(digits).replace(/0+$/,"").replace(/\.$/,"");
+        return formatDimNumber(value, unit);
     }
 
     function buildResultItem(seal, unit) {
@@ -209,9 +257,13 @@ window.SealApp = window.SealApp || {};
 
         const dim = (seal.dimensional || [])[0] || {};
         const shaft = unit === "inch" ? dim.shaft_in : dim.shaft_mm;
-        let shaftLabel = shaft != null
-            ? formatScalarDim(shaft, unit) + (unit === "inch" ? ' in' : ' mm')
-            : "n/a";
+        let shaftLabel = "n/a";
+        if (shaft != null) {
+            const formatted = formatScalarDim(shaft, unit);
+            if (formatted) {
+                shaftLabel = formatted + (unit === "inch" ? " in" : " mm");
+            }
+        }
         if (isFaSeal && Array.isArray(faData.shaft_sizes) && faData.shaft_sizes.length) {
             shaftLabel = faData.shaft_sizes.join(", ");
         }
@@ -326,7 +378,7 @@ window.SealApp = window.SealApp || {};
             shaftLabel = faData.shaft_sizes.join(", ");
         }
 
-        // Operating height (from mixed / metric data youÃ¢â‚¬â„¢ve mapped into head_oper_*)
+        // Operating height (from mixed / metric data youve mapped into head_oper_*)
         let operLabel =
             formatDimValue(dim, "head_oper_in", "head_oper_mm", unit) ||
             formatDimValue(dim, "oper_hgt_in", "oper_hgt_mm", unit) || // if you later add these
@@ -335,7 +387,7 @@ window.SealApp = window.SealApp || {};
             operLabel = faData.oper_heights.join(", ");
         }
 
-        // Mating ring thickness (from mixed / metric data youÃ¢â‚¬â„¢ve mapped into mating_thick_*)
+        // Mating ring thickness (from mixed / metric data youve mapped into mating_thick_*)
         const thickLabel =
             formatDimValue(dim, "mating_thick_in", "mating_thick_mm", unit) ||
             null;
@@ -478,9 +530,9 @@ window.SealApp = window.SealApp || {};
 
         const featList = document.createElement("ul");
         featList.className = "detail-list";
-        const allFeats = cleanLines((seal.features || []).concat(seal.materials_text || []));
+        const featureLines = cleanLines(seal.features || []);
         const noteLines = cleanLines(seal.notes || []);
-        for (const line of allFeats) {
+        for (const line of featureLines) {
             const li = document.createElement("li");
             li.textContent = line;
             featList.appendChild(li);
@@ -505,28 +557,101 @@ window.SealApp = window.SealApp || {};
 
         const typeBox = document.createElement("div");
         typeBox.style.fontSize = "0.78rem";
-        const types = seal.types || [];
-        if (types.length) {
-            for (const t of types) {
-                const desc = search.getTypeDescriptor(t);
-                const p = document.createElement("p");
-                p.style.margin = "0 0 4px";
-                if (desc) {
-                    p.innerHTML =
-                        "<strong>" +
-                        desc.title +
-                        "</strong> \u2014 " +
-                        desc.features +
-                        "<br><em>" +
-                        desc.services +
-                        "</em>";
-                } else {
-                    p.textContent = "Type " + t;
-                }
-                typeBox.appendChild(p);
+        const typeInfo = seal.seal_type_info;
+        const hasStructuredTypeInfo =
+            typeInfo &&
+            (
+                (Array.isArray(typeInfo.head_types) && typeInfo.head_types.length) ||
+                (Array.isArray(typeInfo.mating_designs) && typeInfo.mating_designs.length)
+            );
+        if (hasStructuredTypeInfo) {
+            if (Array.isArray(typeInfo.head_types) && typeInfo.head_types.length) {
+                const headHeader = document.createElement("p");
+                headHeader.style.margin = "0 0 4px";
+                headHeader.innerHTML = "<strong>Seal Head Types</strong>";
+                typeBox.appendChild(headHeader);
+                typeInfo.head_types.forEach(entry => {
+                    const block = document.createElement("div");
+                    block.style.margin = "0 0 8px";
+                    const displayLabel = entry.label || entry.title || ("Head Type " + (entry.code || ""));
+                    const titleLine = document.createElement("p");
+                    titleLine.style.margin = "0 0 2px";
+                    const codeText = entry.code ? " (" + entry.code + ")" : "";
+                    titleLine.innerHTML = "<strong>" + displayLabel + codeText + "</strong>";
+                    block.appendChild(titleLine);
+                    if (entry.equivalent) {
+                        const eq = document.createElement("p");
+                        eq.style.margin = "0 0 2px";
+                        eq.textContent = entry.equivalent;
+                        block.appendChild(eq);
+                    }
+                    ["title", "range", "features", "services"].forEach(key => {
+                        const val = entry[key];
+                        if (!val) return;
+                        if (key === "title" && val === displayLabel) return;
+                        const line = document.createElement("p");
+                        line.style.margin = "0 0 2px";
+                        if (key === "title") {
+                            line.textContent = val;
+                        } else if (key === "range") {
+                            line.textContent = "Range: " + val;
+                        } else if (key === "features") {
+                            line.textContent = val;
+                        } else if (key === "services") {
+                            line.innerHTML = "<em>" + val + "</em>";
+                        }
+                        block.appendChild(line);
+                    });
+                    typeBox.appendChild(block);
+                });
+            }
+            if (Array.isArray(typeInfo.mating_designs) && typeInfo.mating_designs.length) {
+                const matHeader = document.createElement("p");
+                matHeader.style.margin = "8px 0 4px";
+                matHeader.innerHTML = "<strong>Mating Ring Designs</strong>";
+                typeBox.appendChild(matHeader);
+                typeInfo.mating_designs.forEach(entry => {
+                    const block = document.createElement("div");
+                    block.style.margin = "0 0 6px";
+                    const titleLine = document.createElement("p");
+                    titleLine.style.margin = "0 0 2px";
+                    const label = entry.label || ("Design " + (entry.code || ""));
+                    const codeText = entry.code ? " (" + entry.code + ")" : "";
+                    titleLine.innerHTML = "<strong>" + label + codeText + "</strong>";
+                    block.appendChild(titleLine);
+                    if (entry.description) {
+                        const descLine = document.createElement("p");
+                        descLine.style.margin = "0 0 2px";
+                        descLine.textContent = entry.description;
+                        block.appendChild(descLine);
+                    }
+                    typeBox.appendChild(block);
+                });
             }
         } else {
-            typeBox.textContent = "No explicit type code recorded.";
+            const types = seal.types || [];
+            if (types.length) {
+                for (const t of types) {
+                    const desc = search.getTypeDescriptor(t);
+                    const p = document.createElement("p");
+                    p.style.margin = "0 0 4px";
+                    if (desc) {
+                        p.innerHTML =
+                            "<strong>" +
+                            desc.title +
+                            "</strong> \u2014 " +
+                            desc.features +
+                            "<br><em>" +
+                            desc.services +
+                            "</em>";
+                    } else {
+                        p.textContent = "Type " + t;
+                    }
+                    typeBox.appendChild(p);
+                }
+            } else {
+                typeBox.textContent = "No explicit type code recorded.";
+            }
         }
 
         const notesSmall = document.createElement("p");

@@ -63,7 +63,7 @@ html, body {
     list-style: disc;
     padding-left: 16px;
     margin: 0;
-    max-height: 140px;
+    max-height: 200px;
     overflow: auto;
 }
 
@@ -216,6 +216,7 @@ h3 {
 }
 
 .tiny-help {
+    display:none;
     margin: 6px 0 0;
     font-size: 0.72rem;
     color: #6b7280;
@@ -223,7 +224,7 @@ h3 {
 
 .filters-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0,1fr));
+    grid-template-columns: repeat(5, minmax(0,1fr));
     gap: 10px;
     margin-top: 8px;
 }
