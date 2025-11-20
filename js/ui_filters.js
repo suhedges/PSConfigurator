@@ -340,10 +340,13 @@ window.SealApp = window.SealApp || {};
     function renderDesignChart() {
         const assets = window.SealApp.designAssets || {};
         const headContainer = document.getElementById("design-chart-head-grid");
+        const vgHeadContainer = document.getElementById("design-chart-head-vg-grid");
         const ringContainer = document.getElementById("design-chart-ring-grid");
-        if (headContainer) {
-            headContainer.innerHTML = "";
-            (assets.headTypes || []).forEach(item => {
+
+        function renderCards(container, items) {
+            if (!container) return;
+            container.innerHTML = "";
+            (items || []).forEach(item => {
                 const card = document.createElement("div");
                 card.className = "design-chart-card";
                 if (item.image) {
@@ -362,33 +365,21 @@ window.SealApp = window.SealApp || {};
                     detail.textContent = item.detail;
                     card.appendChild(detail);
                 }
-                headContainer.appendChild(card);
+                container.appendChild(card);
             });
         }
-        if (ringContainer) {
-            ringContainer.innerHTML = "";
-            (assets.matingDesigns || []).forEach(item => {
-                const card = document.createElement("div");
-                card.className = "design-chart-card";
-                if (item.image) {
-                    const img = document.createElement("img");
-                    img.src = item.image;
-                    img.alt = item.label || item.code;
-                    card.appendChild(img);
-                }
-                const label = document.createElement("div");
-                label.className = "design-chart-card__label";
-                label.textContent = item.label || item.code;
-                card.appendChild(label);
-                if (item.detail) {
-                    const detail = document.createElement("div");
-                    detail.className = "design-chart-card__detail";
-                    detail.textContent = item.detail;
-                    card.appendChild(detail);
-                }
-                ringContainer.appendChild(card);
-            });
-        }
+
+        const headEntries = assets.headTypes || [];
+        const vgEntries = headEntries.filter(item =>
+            (item && String(item.category || "").toLowerCase() === "value_guard")
+        );
+        const standardEntries = headEntries.filter(item =>
+            !(item && String(item.category || "").toLowerCase() === "value_guard")
+        );
+
+        renderCards(headContainer, standardEntries);
+        renderCards(vgHeadContainer, vgEntries);
+        renderCards(ringContainer, assets.matingDesigns || []);
     }
 
     function initDesignChart() {
