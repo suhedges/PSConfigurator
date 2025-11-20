@@ -645,13 +645,14 @@ h3 {
     width: 17px;
     height: 17px;
     border-radius: 999px;
-    background: #1d4ed8;
-    color: #fff;
+    background: white;
+    color: #b45309;
     font-size: 0.68rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-weight: 700;
+    border: 1px solid #f97316;
 }
 .design-image-tooltip__preview {
     position: absolute;
