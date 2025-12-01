@@ -293,6 +293,10 @@ h3 {
     accent-color: #2563eb;
 }
 
+.checkbox-pill--hidden {
+    display: none !important;
+}
+
 .unit-toggle {
     display: flex;
     gap: 10px;

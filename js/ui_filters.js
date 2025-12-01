@@ -36,6 +36,7 @@ window.SealApp = window.SealApp || {};
             secondaryMaterial: document.getElementById("secondary-material-select")?.value || "",
             faceMaterial: document.getElementById("face-material-select")?.value || "",
             metalMaterial: document.getElementById("metal-material-select")?.value || "",
+            matingRingMaterial: document.getElementById("mating-ring-material-select")?.value || "",
             minTempF: document.getElementById("temp-rating-select")?.value || "",
             fluidSecondaryIndex: parseFluid(fluidSecondarySelect),
             fluidFacesIndex: parseFluid(fluidFacesSelect),
@@ -174,6 +175,7 @@ window.SealApp = window.SealApp || {};
         if (categoryKey === "secondary") clone.secondaryMaterial = "";
         if (categoryKey === "faces") clone.faceMaterial = "";
         if (categoryKey === "metals") clone.metalMaterial = "";
+        if (categoryKey === "mating_rings") clone.matingRingMaterial = "";
         const set = new Set();
         (search.filterSeals(clone) || []).forEach(seal => {
             const list = seal.materials && seal.materials[categoryKey];
@@ -256,11 +258,13 @@ window.SealApp = window.SealApp || {};
         const secOpts = collectMaterialOptions("secondary", filters);
         const faceOpts = collectMaterialOptions("faces", filters);
         const metalOpts = collectMaterialOptions("metals", filters);
+        const matingRingOpts = collectMaterialOptions("mating_rings", filters);
         const tempOpts = collectTempOptions(filters);
 
         fillSimpleSelect(document.getElementById("secondary-material-select"), "Any", secOpts, filters.secondaryMaterial);
         fillSimpleSelect(document.getElementById("face-material-select"), "Any", faceOpts, filters.faceMaterial);
         fillSimpleSelect(document.getElementById("metal-material-select"), "Any", metalOpts, filters.metalMaterial);
+        fillSimpleSelect(document.getElementById("mating-ring-material-select"), "Any", matingRingOpts, filters.matingRingMaterial);
         fillTempSelect(document.getElementById("temp-rating-select"), tempOpts, filters.minTempF);
 
         if (search && search.collectFluidOptionsForCategory) {
@@ -307,6 +311,7 @@ window.SealApp = window.SealApp || {};
             "secondary-material-select",
             "face-material-select",
             "metal-material-select",
+            "mating-ring-material-select",
             "temp-rating-select",
             "fluid-secondary-select",
             "fluid-faces-select",
@@ -422,6 +427,7 @@ window.SealApp = window.SealApp || {};
                 "secondary-material-select",
                 "face-material-select",
                 "metal-material-select",
+                "mating-ring-material-select",
                 "temp-rating-select",
                 "fluid-secondary-select",
                 "fluid-faces-select",

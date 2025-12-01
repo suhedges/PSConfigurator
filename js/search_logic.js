@@ -310,6 +310,10 @@ window.SealApp = window.SealApp || {};
             const list = mats.metals || [];
             if (!list.includes(filters.metalMaterial)) return false;
         }
+        if (filters.matingRingMaterial) {
+            const list = mats.mating_rings || [];
+            if (!list.includes(filters.matingRingMaterial)) return false;
+        }
 
         // Temperature
         if (filters.minTempF) {

@@ -1015,6 +1015,7 @@ window.SealApp = window.SealApp || {};
                 secondaryMaterial: document.getElementById("secondary-material-select").value || "",
                 faceMaterial: document.getElementById("face-material-select").value || "",
                 metalMaterial: document.getElementById("metal-material-select").value || "",
+                matingRingMaterial: document.getElementById("mating-ring-material-select").value || "",
                 minTempF: document.getElementById("temp-rating-select").value || "",
                 fluidSecondaryIndex: (function() {
                     const sel = document.getElementById("fluid-secondary-select");
@@ -1063,6 +1064,7 @@ window.SealApp = window.SealApp || {};
             document.getElementById("secondary-material-select").selectedIndex = 0;
             document.getElementById("face-material-select").selectedIndex = 0;
             document.getElementById("metal-material-select").selectedIndex = 0;
+            document.getElementById("mating-ring-material-select").selectedIndex = 0;
             document.getElementById("temp-rating-select").selectedIndex = 0;
             const fs = document.getElementById("fluid-secondary-select");
             const ff = document.getElementById("fluid-faces-select");
